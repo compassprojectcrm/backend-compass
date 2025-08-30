@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Agent {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  packages Package[]
+}
+
+model Package {
+  packageId    Int           @id @default(autoincrement())
+  packageName  String
+  tripType     TripType
+  days         Int
+  nights       Int
+  price        Float
+  description  String?
+  destinations Destination[]
+
+  agent   Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  agentId Int
+}
+
+enum TripType {
+  GLOBAL
+  LOCAL
+}
+
+model Country {
+  id     Int     @id @default(autoincrement())
+  name   String  @unique
+  states State[]
+}
+
+model State {
+  id        Int     @id @default(autoincrement())
+  name      String
+  country   Country @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  countryId Int
+  cities    City[]
+}
+
+model City {
+  id           Int           @id @default(autoincrement())
+  name         String
+  state        State         @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  stateId      Int
+  destinations Destination[]
+}
+
+model Destination {
+  destinationId Int @id @default(autoincrement())
+
+  city   City @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  cityId Int
+
+  Package          Package? @relation(fields: [packagePackageId], references: [packageId], onDelete: Cascade)
+  packagePackageId Int?
+}
