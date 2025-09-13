@@ -2,8 +2,11 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import bcrypt from "bcrypt";
-import { prisma } from "../../../prisma";
-import { CONSTANTS } from "../../../constants";
+import { prisma } from "../../prisma";
+import { CONSTANTS } from "../../constants/constants";
+import { ROUTES } from "../../constants/routes";
+import { getPermissionKeysByRole } from "../../constants/permissions";
+import { ROLES } from "../../constants/roles";
 
 /** Validation schema for signup input */
 const signupSchema = z.object({
@@ -13,18 +16,17 @@ const signupSchema = z.object({
 
 /** Signup route for creating a new agent with a default team */
 export default async function signupRoute(app: FastifyInstance) {
-    app.post(CONSTANTS.ROUTES.AUTH.AGENT_SIGNUP, async (req: FastifyRequest, reply: FastifyReply) => {
-
-        /** Parse and validate request body */
-        const parsed = signupSchema.safeParse(req.body);
-        if (!parsed.success) return reply.status(400).send(parsed.error.format());
-
-        const { email, password } = parsed.data;
-
+    app.post(ROUTES.AUTH.AGENT_SIGNUP, async (req: FastifyRequest, reply: FastifyReply) => {
         try {
+            /** Parse and validate request body */
+            const parsed = signupSchema.safeParse(req.body);
+            if (!parsed.success) return reply.status(400).send(parsed.error.format());
+
+            const { email, password } = parsed.data;
+
             /** Check if user already exists */
-            const existingUser = await prisma.agent.findUnique({ where: { email } });
-            if (existingUser) {
+            const existingAgent = await prisma.agent.findUnique({ where: { email } });
+            if (existingAgent) {
                 return reply.status(400).send({ error: "User already exists!" });
             }
 
@@ -44,8 +46,9 @@ export default async function signupRoute(app: FastifyInstance) {
 
             /** Generate JWT token */
             const token = app.jwt.sign({
-                userId: agent.agentId,
-                permissions: [CONSTANTS.PERMISSIONS.ADMIN],
+                role: ROLES.AGENT,
+                id: agent.agentId,
+                permissions: getPermissionKeysByRole(ROLES.AGENT),
             });
 
             /** Return success response with user info and default team */

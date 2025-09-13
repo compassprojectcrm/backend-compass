@@ -1,9 +1,11 @@
 /** src/routes/packages/update-package.ts */
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { prisma } from "../../../prisma";
-import { CONSTANTS } from "../../../constants";
-import { permissionGuard } from "../../../middleware/auth";
+import { prisma } from "../../prisma";
+import { CONSTANTS } from "../../constants/constants";
+import { permissionGuard } from "../../middleware/auth";
+import { ROUTES } from "../../constants/routes";
+import { PERMISSIONS } from "../../constants/permissions";
 
 /** Zod schema for updating a package */
 const updatePackageSchema = z.object({
@@ -16,31 +18,32 @@ const updatePackageSchema = z.object({
     isPrivate: z.boolean().optional(),
     startDate: z.string().datetime().optional(),
     endDate: z.string().datetime().optional(),
+    members: z.number().min(1).optional()
 });
 
 /** PUT /packages/update */
 export default async function updatePackageRoute(app: FastifyInstance) {
-    app.put(CONSTANTS.ROUTES.PACKAGE.UPDATE, {
+    app.put(ROUTES.PACKAGE.UPDATE, {
         preValidation: [
             app.authenticate,
-            permissionGuard([CONSTANTS.PERMISSIONS.PACKAGE.UPDATE])
+            permissionGuard([PERMISSIONS.PACKAGE.UPDATE])
         ]
     }, async (req: FastifyRequest, reply: FastifyReply) => {
-        /** Validate request body */
-        const parsed = updatePackageSchema.safeParse(req.body);
-        if (!parsed.success) {
-            return reply.status(400).send(parsed.error.format());
-        }
-
-        const { packageId, ...updateData } = parsed.data;
-
         try {
+            /** Validate request body */
+            const parsed = updatePackageSchema.safeParse(req.body);
+            if (!parsed.success) {
+                return reply.status(400).send(parsed.error.format());
+            }
+
+            const { packageId, ...updateData } = parsed.data;
+
             /** Check if the package exists and belongs to this agent */
             const existingPackage = await prisma.package.findUnique({
                 where: { packageId },
             });
 
-            if (!existingPackage || existingPackage.agentId !== req.user.userId) {
+            if (!existingPackage || existingPackage.agentId !== req.user.id) {
                 return reply.status(404).send({ error: CONSTANTS.ERRORS.NOT_FOUND });
             }
 
@@ -64,8 +67,7 @@ export default async function updatePackageRoute(app: FastifyInstance) {
                     isPrivate: true,
                     startDate: true,
                     endDate: true,
-                    createdAt: true,
-                    updatedAt: true,
+                    members: true,
                 },
             });
 

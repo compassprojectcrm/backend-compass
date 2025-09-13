@@ -23,6 +23,7 @@ model Package {
   tripType    TripType
   status      PackageStatus @default(ACTIVE)
   price       Float
+  members     Int
   description String?
   isFeatured  Boolean       @default(false)
   isPrivate   Boolean       @default(false)
@@ -30,13 +31,29 @@ model Package {
   startDate DateTime
   endDate   DateTime
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   destinations Destination[]
   agent        Agent         @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
   agentId      Int
+
+  subscriptions PackageSubscription[] @relation("PackageSubscriptions")
+}
+
+model PackageSubscription {
+  id Int @id @default(autoincrement())
+
+  package   Package @relation(fields: [packageId], references: [packageId], onDelete: Cascade, name: "PackageSubscriptions")
+  packageId Int
+
+  traveller   Traveller @relation(fields: [travellerId], references: [travellerId], onDelete: Cascade, name: "TravellerSubscriptions")
+  travellerId Int
+
+  subscribedAt DateTime @default(now())
+  moneyPaid    Float    @default(0)
+
+  @@unique([packageId, travellerId])
 }
 
 enum PackageStatus {
@@ -73,11 +90,26 @@ model City {
 }
 
 model Destination {
-  destinationId Int @id @default(autoincrement())
-
-  city   City @relation(fields: [cityId], references: [cityId], onDelete: Cascade)
-  cityId Int
+  destinationId Int      @id @default(autoincrement())
+  title         String
+  description   String?
+  startDate     DateTime
+  endDate       DateTime
+  city          City     @relation(fields: [cityId], references: [cityId], onDelete: Cascade)
+  cityId        Int
 
   Package   Package @relation(fields: [packageId], references: [packageId], onDelete: Cascade)
   packageId Int
+}
+
+model Traveller {
+  travellerId Int      @id @default(autoincrement())
+  firstName   String
+  lastName    String
+  email       String   @unique
+  password    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  subscriptions PackageSubscription[] @relation("TravellerSubscriptions")
 }

@@ -4,19 +4,21 @@ import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import jwt from "@fastify/jwt";
-import loginRoute from "./routes/agents/auth/login";
-import signupRoute from "./routes/agents/auth/signup";
-import { CONSTANTS } from "./constants";
+import loginRoute from "./routes/auth/agent_login";
+import signupRoute from "./routes/auth/agent_signup";
+import { CONSTANTS } from "./constants/constants";
 import dotenv from "dotenv";
 import countriesRoute from "./routes/common/countries";
-import createPackageRoute from "./routes/agents/package/create-package";
-import deletePackageRoute from "./routes/agents/package/delete-package";
-import updatePackageRoute from "./routes/agents/package/update-package";
-import getPackagesRoute from "./routes/agents/package/get-all-packages";
-import getPackageByIdRoute from "./routes/agents/package/get-package-by-id";
-import createDestinationRoute from "./routes/agents/destination/create-destination";
-import updateDestinationRoute from "./routes/agents/destination/update-destination";
-import deleteDestinationRoute from "./routes/agents/destination/delete-destination";
+import createPackageRoute from "./routes/package/create-package";
+import deletePackageRoute from "./routes/package/delete-package";
+import updatePackageRoute from "./routes/package/update-package";
+import getPackagesRoute from "./routes/package/get-all-packages";
+import createDestinationRoute from "./routes/destination/add-destination";
+import updateDestinationRoute from "./routes/destination/update-destination";
+import deleteDestinationRoute from "./routes/destination/delete-destination";
+import customerSignupRoute from "./routes/auth/traveller_signup";
+import customerLoginRoute from "./routes/auth/traveller_login";
+import verifyCustomerEmailRoute from "./routes/common/search-customer-email";
 
 /** Load environment variables from .env file */
 dotenv.config();
@@ -96,14 +98,18 @@ app.decorate(
 /** Routes */
 app.register(loginRoute);
 app.register(signupRoute);
+app.register(customerSignupRoute);
+app.register(customerLoginRoute);
+
+/** common route */
 app.register(countriesRoute);
+app.register(verifyCustomerEmailRoute);
 
 /** packages */
 app.register(createPackageRoute);
 app.register(deletePackageRoute);
 app.register(updatePackageRoute);
 app.register(getPackagesRoute);
-app.register(getPackageByIdRoute);
 
 /** destinations */
 app.register(createDestinationRoute);

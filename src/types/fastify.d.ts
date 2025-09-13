@@ -10,11 +10,13 @@ declare module "fastify" {
 declare module "@fastify/jwt" {
   interface FastifyJWT {
     payload: {
-      userId: number;
+      role: string;
+      id: number;
       permissions: string[];
     };
     user: {
-      userId: number;
+      role: string;
+      id: number;
       permissions: string[];
     };
   }

@@ -1,9 +1,11 @@
 /** src/routes/packages/get-package-by-id.ts */
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { prisma } from "../../../prisma";
-import { CONSTANTS } from "../../../constants";
-import { permissionGuard } from "../../../middleware/auth";
+import { prisma } from "../../prisma";
+import { CONSTANTS } from "../../constants/constants";
+import { permissionGuard } from "../../middleware/auth";
+import { ROUTES } from "../../constants/routes";
+import { PERMISSIONS } from "../../constants/permissions";
 
 /** Zod schema for validating route params */
 const getPackageSchema = z.object({
@@ -12,10 +14,10 @@ const getPackageSchema = z.object({
 
 /** GET /packages/:packageId */
 export default async function getPackageByIdRoute(app: FastifyInstance) {
-    app.get(CONSTANTS.ROUTES.PACKAGE.GET_BY_ID, {
+    app.get(ROUTES.PACKAGE.GET_BY_ID, {
         preValidation: [
             app.authenticate,
-            permissionGuard([CONSTANTS.PERMISSIONS.PACKAGE.READ])
+            permissionGuard([PERMISSIONS.PACKAGE.READ])
         ]
     }, async (req: FastifyRequest, reply: FastifyReply) => {
         try {
@@ -31,28 +33,42 @@ export default async function getPackageByIdRoute(app: FastifyInstance) {
             const packageItem = await prisma.package.findFirst({
                 where: {
                     packageId,
-                    agentId: req.user.userId,
+                    agentId: req.user.id,
                 },
                 select: {
                     packageId: true,
                     packageName: true,
                     tripType: true,
-                    status: true,
                     price: true,
-                    description: true,
-                    isFeatured: true,
-                    isPrivate: true,
+                    members: true,
+                    status: true,
                     startDate: true,
                     endDate: true,
-                    createdAt: true,
-                    updatedAt: true,
+                    isFeatured: true,
+                    isPrivate: true,
                     destinations: {
                         select: {
                             destinationId: true,
-                            cityId: true,
+                            title: true,
+                            description: true,
+                            startDate: true,
+                            endDate: true,
                             city: {
                                 select: {
+                                    cityId: true,
                                     cityName: true,
+                                    state: {
+                                        select: {
+                                            stateId: true,
+                                            stateName: true,
+                                            country: {
+                                                select: {
+                                                    countryId: true,
+                                                    countryName: true
+                                                }
+                                            }
+                                        }
+                                    }
                                 },
                             },
                         },
