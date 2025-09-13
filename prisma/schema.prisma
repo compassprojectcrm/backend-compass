@@ -8,7 +8,7 @@ datasource db {
 }
 
 model Agent {
-  id        Int      @id @default(autoincrement())
+  agentId   Int      @id @default(autoincrement())
   email     String   @unique
   password  String
   createdAt DateTime @default(now())
@@ -18,17 +18,31 @@ model Agent {
 }
 
 model Package {
-  packageId    Int           @id @default(autoincrement())
-  packageName  String
-  tripType     TripType
-  days         Int
-  nights       Int
-  price        Float
-  description  String?
-  destinations Destination[]
+  packageId   Int           @id @default(autoincrement())
+  packageName String
+  tripType    TripType
+  status      PackageStatus @default(ACTIVE)
+  price       Float
+  description String?
+  isFeatured  Boolean       @default(false)
+  isPrivate   Boolean       @default(false)
 
-  agent   Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
-  agentId Int
+  startDate DateTime
+  endDate   DateTime
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  destinations Destination[]
+  agent        Agent         @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
+  agentId      Int
+}
+
+enum PackageStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
 }
 
 enum TripType {
@@ -37,23 +51,23 @@ enum TripType {
 }
 
 model Country {
-  id     Int     @id @default(autoincrement())
-  name   String  @unique
-  states State[]
+  countryId   Int     @id @default(autoincrement())
+  countryName String  @unique
+  states      State[]
 }
 
 model State {
-  id        Int     @id @default(autoincrement())
-  name      String
-  country   Country @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  stateId   Int     @id @default(autoincrement())
+  stateName String
+  country   Country @relation(fields: [countryId], references: [countryId], onDelete: Cascade)
   countryId Int
   cities    City[]
 }
 
 model City {
-  id           Int           @id @default(autoincrement())
-  name         String
-  state        State         @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  cityId       Int           @id @default(autoincrement())
+  cityName     String
+  state        State         @relation(fields: [stateId], references: [stateId], onDelete: Cascade)
   stateId      Int
   destinations Destination[]
 }
@@ -61,9 +75,9 @@ model City {
 model Destination {
   destinationId Int @id @default(autoincrement())
 
-  city   City @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  city   City @relation(fields: [cityId], references: [cityId], onDelete: Cascade)
   cityId Int
 
-  Package          Package? @relation(fields: [packagePackageId], references: [packageId], onDelete: Cascade)
-  packagePackageId Int?
+  Package   Package @relation(fields: [packageId], references: [packageId], onDelete: Cascade)
+  packageId Int
 }

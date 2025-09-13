@@ -7,13 +7,17 @@ export const CONSTANTS = {
     },
     PERMISSIONS: {
         ADMIN: "admin",
-        AGENT: {
-            PACKAGE: {
-                CREATE: "package:create",
-                READ: "package:read",
-                UPDATE: "package:update",
-                DELETE: "package:delete",
-            }
+        PACKAGE: {
+            CREATE: "package:create",
+            READ: "package:read",
+            UPDATE: "package:update",
+            DELETE: "package:delete",
+        },
+        DESTINATION: {
+            CREATE: "destination:create",
+            READ: "destination:read",
+            DELETE: "destination:delete",
+            UPDATE: "destination:update",
         }
     },
     ERRORS: {
@@ -24,18 +28,23 @@ export const CONSTANTS = {
         FORBIDDEN: "Forbidden",
     },
     ROUTES: {
-        AGENT: {
-            AUTH: {
-                LOGIN: "/auth/agent/login",
-                SIGNUP: "/auth/agent/signup",
-            },
-            PACKAGE: {
-                CREATE: "/agent/package/create",
-                GET_ALL: "/agent/package",
-                DELETE: "/agent/package/delete/:id",
-                UPDATE: "/agent/package/update",
-                GET_BY_ID: "/agent/package/:id",
-            }
+        AUTH: {
+            AGENT_LOGIN: "/auth/agent/login",
+            AGENT_SIGNUP: "/auth/agent/signup",
+        },
+        PACKAGE: {
+            CREATE: "/package/create",
+            GET_ALL: "/package",
+            DELETE: "/package/delete/:id",
+            UPDATE: "/package/update",
+            GET_BY_ID: "/package/:id",
+        },
+        DESTINATION: {
+            CREATE: "/destination/create",
+            DELETE: "/destination/delete/:destinationId",
+            GET_BY_PACKAGE: "/destination/package/:packageId",
+            GET_ALL: "/destination",
+            UPDATE: "/destination/update",
         },
         COMMON: {
             COUNTRIES: "/countries",

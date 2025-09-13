@@ -9,29 +9,25 @@ export default async function countriesRoute(app: FastifyInstance) {
         preValidation: [app.authenticate]
     }, async (_req: FastifyRequest, reply: FastifyReply) => {
         try {
-            const response = await prisma.country.findMany({
-                include: {
+            const countries = await prisma.country.findMany({
+                select: {
+                    countryId: true,
+                    countryName: true,
                     states: {
-                        include: {
-                            cities: true
+                        select: {
+                            stateId: true,
+                            stateName: true,
+                            cities: {
+                                select: {
+                                    cityId: true,
+                                    cityName: true
+                                }
+                            }
                         }
                     }
                 },
-                orderBy: { name: "asc" }
+                orderBy: { countryName: "asc" }
             });
-
-            const countries = response.map(country => ({
-                id: country.id,
-                name: country.name,
-                states: country.states.map(state => ({
-                    id: state.id,
-                    name: state.name,
-                    cities: state.cities.map(city => ({
-                        id: city.id,
-                        name: city.name
-                    }))
-                }))
-            }));
 
             return reply.send({ countries });
         } catch (err: any) {

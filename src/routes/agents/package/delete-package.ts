@@ -7,15 +7,15 @@ import { permissionGuard } from "../../../middleware/auth";
 
 /** Zod schema for validating route params */
 const querySchema = z.object({
-    id: z.string().regex(/^\d+$/)
+    packageId: z.coerce.number().int().positive()
 });
 
 /** DELETE /packages/:packageId */
 export default async function deletePackageRoute(app: FastifyInstance) {
-    app.delete(CONSTANTS.ROUTES.AGENT.PACKAGE.DELETE, {
+    app.delete(CONSTANTS.ROUTES.PACKAGE.DELETE, {
         preValidation: [
             app.authenticate,
-            permissionGuard([CONSTANTS.PERMISSIONS.AGENT.PACKAGE.DELETE])
+            permissionGuard([CONSTANTS.PERMISSIONS.PACKAGE.DELETE])
         ]
     }, async (req: FastifyRequest, reply: FastifyReply) => {
         /** Validate route params */
@@ -24,7 +24,7 @@ export default async function deletePackageRoute(app: FastifyInstance) {
             return reply.status(400).send(parsed.error.format());
         }
 
-        const packageId = parseInt(parsed.data.id, 10);
+        const { packageId } = parsed.data;
 
         try {
             /** Ensure the package belongs to the authenticated agent */

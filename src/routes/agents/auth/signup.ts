@@ -13,7 +13,7 @@ const signupSchema = z.object({
 
 /** Signup route for creating a new agent with a default team */
 export default async function signupRoute(app: FastifyInstance) {
-    app.post(CONSTANTS.ROUTES.AGENT.AUTH.SIGNUP, async (req: FastifyRequest, reply: FastifyReply) => {
+    app.post(CONSTANTS.ROUTES.AUTH.AGENT_SIGNUP, async (req: FastifyRequest, reply: FastifyReply) => {
 
         /** Parse and validate request body */
         const parsed = signupSchema.safeParse(req.body);
@@ -44,7 +44,7 @@ export default async function signupRoute(app: FastifyInstance) {
 
             /** Generate JWT token */
             const token = app.jwt.sign({
-                userId: agent.id,
+                userId: agent.agentId,
                 permissions: [CONSTANTS.PERMISSIONS.ADMIN],
             });
 

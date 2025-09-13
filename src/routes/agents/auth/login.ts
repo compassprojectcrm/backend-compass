@@ -13,7 +13,7 @@ const loginSchema = z.object({
 
 export default async function loginRoute(app: FastifyInstance) {
     /** POST /login */
-    app.post(CONSTANTS.ROUTES.AGENT.AUTH.LOGIN, async (req: FastifyRequest, reply: FastifyReply) => {
+    app.post(CONSTANTS.ROUTES.AUTH.AGENT_LOGIN, async (req: FastifyRequest, reply: FastifyReply) => {
         const parsed = loginSchema.safeParse(req.body);
         if (!parsed.success) {
             return reply.status(400).send(parsed.error.format());
@@ -39,8 +39,8 @@ export default async function loginRoute(app: FastifyInstance) {
 
             /** Generate JWT token */
             const token = app.jwt.sign({
-                userId: agent.id,
-                permissions: [CONSTANTS.PERMISSIONS.AGENT.PACKAGE.READ, CONSTANTS.PERMISSIONS.AGENT.PACKAGE.CREATE],
+                userId: agent.agentId,
+                permissions: [CONSTANTS.PERMISSIONS.ADMIN],
             });
 
             return reply.send({

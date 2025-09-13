@@ -5,26 +5,26 @@ const prisma = new PrismaClient();
 async function main() {
     const countries = [
         {
-            name: "United States",
+            countryName: "United States",
             states: {
                 create: [
                     {
-                        name: "California",
+                        stateName: "California",
                         cities: {
                             create: [
-                                { name: "Los Angeles" },
-                                { name: "San Francisco" },
-                                { name: "San Diego" },
+                                { cityName: "Los Angeles" },
+                                { cityName: "San Francisco" },
+                                { cityName: "San Diego" },
                             ],
                         },
                     },
                     {
-                        name: "Texas",
+                        stateName: "Texas",
                         cities: {
                             create: [
-                                { name: "Houston" },
-                                { name: "Austin" },
-                                { name: "Dallas" },
+                                { cityName: "Houston" },
+                                { cityName: "Austin" },
+                                { cityName: "Dallas" },
                             ],
                         },
                     },
@@ -32,26 +32,26 @@ async function main() {
             },
         },
         {
-            name: "India",
+            countryName: "India",
             states: {
                 create: [
                     {
-                        name: "Maharashtra",
+                        stateName: "Maharashtra",
                         cities: {
                             create: [
-                                { name: "Mumbai" },
-                                { name: "Pune" },
-                                { name: "Nagpur" },
+                                { cityName: "Mumbai" },
+                                { cityName: "Pune" },
+                                { cityName: "Nagpur" },
                             ],
                         },
                     },
                     {
-                        name: "Karnataka",
+                        stateName: "Karnataka",
                         cities: {
                             create: [
-                                { name: "Bengaluru" },
-                                { name: "Mysuru" },
-                                { name: "Mangalore" },
+                                { cityName: "Bengaluru" },
+                                { cityName: "Mysuru" },
+                                { cityName: "Mangalore" },
                             ],
                         },
                     },
@@ -62,7 +62,7 @@ async function main() {
 
     for (const country of countries) {
         await prisma.country.upsert({
-            where: { name: country.name },
+            where: { countryName: country.countryName },
             update: {},
             create: country,
         });
@@ -71,9 +71,11 @@ async function main() {
     console.log("✅ Database seeded successfully!");
 }
 
-main().catch((e) => {
-    console.error(e);
-    process.exit(1);
-}).finally(async () => {
-    await prisma.$disconnect();
-});
+main()
+    .catch((e) => {
+        console.error(e);
+        process.exit(1);
+    })
+    .finally(async () => {
+        await prisma.$disconnect();
+    });

@@ -7,21 +7,23 @@ import { permissionGuard } from "../../../middleware/auth";
 
 /** Zod schema for updating a package */
 const updatePackageSchema = z.object({
-    packageId: z.number().int().min(1),
+    packageId: z.number().int().min(1),  /** Package ID */
     packageName: z.string().min(1).optional(),
     tripType: z.enum(["GLOBAL", "LOCAL"]).optional(),
-    days: z.number().int().min(1).optional(),
-    nights: z.number().int().min(0).optional(),
     price: z.number().min(0).optional(),
-    description: z.string().optional()
+    description: z.string().optional(),
+    isFeatured: z.boolean().optional(),
+    isPrivate: z.boolean().optional(),
+    startDate: z.string().datetime().optional(),
+    endDate: z.string().datetime().optional(),
 });
 
 /** PUT /packages/update */
 export default async function updatePackageRoute(app: FastifyInstance) {
-    app.put(CONSTANTS.ROUTES.AGENT.PACKAGE.UPDATE, {
+    app.put(CONSTANTS.ROUTES.PACKAGE.UPDATE, {
         preValidation: [
             app.authenticate,
-            permissionGuard([CONSTANTS.PERMISSIONS.AGENT.PACKAGE.UPDATE])
+            permissionGuard([CONSTANTS.PERMISSIONS.PACKAGE.UPDATE])
         ]
     }, async (req: FastifyRequest, reply: FastifyReply) => {
         /** Validate request body */
@@ -45,7 +47,26 @@ export default async function updatePackageRoute(app: FastifyInstance) {
             /** Update the package */
             const updatedPackage = await prisma.package.update({
                 where: { packageId },
-                data: updateData,
+                data: {
+                    ...updateData,
+                    /** Convert dates if provided */
+                    ...(updateData.startDate && { startDate: new Date(updateData.startDate) }),
+                    ...(updateData.endDate && { endDate: new Date(updateData.endDate) }),
+                },
+                select: {
+                    packageId: true,
+                    packageName: true,
+                    tripType: true,
+                    status: true,
+                    price: true,
+                    description: true,
+                    isFeatured: true,
+                    isPrivate: true,
+                    startDate: true,
+                    endDate: true,
+                    createdAt: true,
+                    updatedAt: true,
+                },
             });
 
             return reply.status(200).send({ package: updatedPackage });

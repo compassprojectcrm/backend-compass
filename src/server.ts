@@ -14,6 +14,9 @@ import deletePackageRoute from "./routes/agents/package/delete-package";
 import updatePackageRoute from "./routes/agents/package/update-package";
 import getPackagesRoute from "./routes/agents/package/get-all-packages";
 import getPackageByIdRoute from "./routes/agents/package/get-package-by-id";
+import createDestinationRoute from "./routes/agents/destination/create-destination";
+import updateDestinationRoute from "./routes/agents/destination/update-destination";
+import deleteDestinationRoute from "./routes/agents/destination/delete-destination";
 
 /** Load environment variables from .env file */
 dotenv.config();
@@ -94,11 +97,18 @@ app.decorate(
 app.register(loginRoute);
 app.register(signupRoute);
 app.register(countriesRoute);
+
+/** packages */
 app.register(createPackageRoute);
 app.register(deletePackageRoute);
 app.register(updatePackageRoute);
 app.register(getPackagesRoute);
 app.register(getPackageByIdRoute);
+
+/** destinations */
+app.register(createDestinationRoute);
+app.register(updateDestinationRoute);
+app.register(deleteDestinationRoute);
 
 /** Start server */
 app.listen({ port: 3000 }, (err, address) => {
