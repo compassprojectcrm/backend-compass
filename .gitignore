@@ -10,6 +10,6 @@ node_modules
 # Vercel build artifacts
 .vercel
 
-# Logs folder itself, but keep it in repo
-logs/*
-!logs/.gitkeep
+# Logs folder inside src, keep folder but ignore its contents
+/src/logs/*
+!/src/logs/.gitkeep
