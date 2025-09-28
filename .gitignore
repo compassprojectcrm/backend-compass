@@ -1,7 +1,15 @@
+# Node modules
 node_modules
-# Keep environment variables out of version control
+
+# Environment variables
 .env
 
+# Generated Prisma client
 /src/generated/prisma
-logs
+
+# Vercel build artifacts
 .vercel
+
+# Logs folder itself, but keep it in repo
+logs/*
+!logs/.gitkeep
