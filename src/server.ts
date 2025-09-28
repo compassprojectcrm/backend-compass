@@ -117,7 +117,7 @@ app.register(updateDestinationRoute);
 app.register(deleteDestinationRoute);
 
 /** Start server */
-app.listen({ port: 10000 }, (err, address) => {
+app.listen({ port: 10000, host: "0.0.0.0" }, (err, address) => {
   if (err) throw err;
   console.log(`Server running at ${address}`);
 });
