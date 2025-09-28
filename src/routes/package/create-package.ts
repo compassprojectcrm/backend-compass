@@ -42,7 +42,17 @@ const createPackageSchema = z
     .refine((data) => new Date(data.endDate) > new Date(data.startDate), {
         message: "endDate must be after startDate",
         path: ["endDate"],
-    });
+    })
+    .refine(
+        (data) =>
+            data.destinations.every(
+                (d) => new Date(d.endDate) > new Date(d.startDate)
+            ),
+        {
+            message: "In destinations, endDate must be after startDate",
+            path: ["destinations"],
+        }
+    );
 
 /** POST /packages/create */
 export default async function createPackageRoute(app: FastifyInstance) {
@@ -81,12 +91,15 @@ export default async function createPackageRoute(app: FastifyInstance) {
                 /** Copy destinations from another package if requested */
                 if (copyDestinationsFromPackageId) {
                     const sourcePackage = await prisma.package.findUnique({
-                        where: { packageId: copyDestinationsFromPackageId },
+                        where: {
+                            packageId: copyDestinationsFromPackageId,
+                            agentId: req.user.id,
+                        },
                         include: { destinations: true },
                     });
 
                     if (!sourcePackage) {
-                        return reply.status(404).send({ error: "Source package not found" });
+                        return reply.status(404).send({ error: "package not found!" });
                     }
 
                     finalDestinations = [
@@ -99,6 +112,35 @@ export default async function createPackageRoute(app: FastifyInstance) {
                             cityId: d.cityId,
                         })),
                     ];
+                }
+
+                /** Validate travellerIds */
+                if (travellerIds.length > 0) {
+                    const validTravellers = await prisma.traveller.findMany({
+                        where: {
+                            travellerId: { in: travellerIds }
+                        },
+                        select: { travellerId: true },
+                    });
+
+                    const validTravellerIds = validTravellers.map((t) => t.travellerId);
+                    if (validTravellerIds.length !== travellerIds.length) {
+                        return reply.status(400).send({ error: "One or more traveller IDs are invalid!" });
+                    }
+                }
+
+                /** Validate cityIds in destinations */
+                const cityIds = finalDestinations.map((d) => d.cityId);
+                if (cityIds.length > 0) {
+                    const validCities = await prisma.city.findMany({
+                        where: { cityId: { in: cityIds } },
+                        select: { cityId: true },
+                    });
+
+                    const validCityIds = validCities.map((c) => c.cityId);
+                    if (validCityIds.length !== cityIds.length) {
+                        return reply.status(400).send({ error: "One or more city IDs are invalid!" });
+                    }
                 }
 
                 /** Create package */

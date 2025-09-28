@@ -43,7 +43,19 @@ export default async function getPackagesRoute(app: FastifyInstance) {
 
                 /** Fetch packages */
                 const packages = await prisma.package.findMany({
-                    where: { agentId },
+                    where: isAgent
+                        ? { agentId } // ✅ agents: only their own packages
+                        : {
+                            agentId, // ✅ traveller must still specify which agent
+                            OR: [
+                                { isPrivate: false }, // ✅ public packages
+                                {
+                                    subscriptions: {
+                                        some: { travellerId: req.user.id }, // ✅ private but subscribed
+                                    },
+                                },
+                            ],
+                        },
                     select: {
                         packageId: true,
                         packageName: true,
@@ -110,7 +122,6 @@ export default async function getPackagesRoute(app: FastifyInstance) {
 
                 return reply.send({ packages });
             } catch (err: any) {
-                console.error(err);
                 return reply
                     .status(500)
                     .send({ error: CONSTANTS.ERRORS.INTERNAL_SERVER_ERROR });

@@ -36,7 +36,7 @@ export default async function deletePackagesRoute(app: FastifyInstance) {
             });
 
             if (packages.length === 0) {
-                return reply.status(404).send({ error: "No valid packages found to delete" });
+                return reply.status(404).send({ error: "No valid packages found to delete!" });
             }
 
             const validPackageIds = packages.map(p => p.packageId);
@@ -47,8 +47,7 @@ export default async function deletePackagesRoute(app: FastifyInstance) {
             });
 
             return reply.status(200).send({
-                message: "Packages deleted successfully",
-                deletedPackageIds: validPackageIds
+                message: "Packages deleted successfully!"
             });
         } catch (err: any) {
             console.error(err);

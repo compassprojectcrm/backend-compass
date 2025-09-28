@@ -8,18 +8,31 @@ import { ROUTES } from "../../constants/routes";
 import { PERMISSIONS } from "../../constants/permissions";
 
 /** Zod schema for updating a package */
-const updatePackageSchema = z.object({
-    packageId: z.number().int().min(1),  /** Package ID */
-    packageName: z.string().min(1).optional(),
-    tripType: z.enum(["GLOBAL", "LOCAL"]).optional(),
-    price: z.number().min(0).optional(),
-    description: z.string().optional(),
-    isFeatured: z.boolean().optional(),
-    isPrivate: z.boolean().optional(),
-    startDate: z.string().datetime().optional(),
-    endDate: z.string().datetime().optional(),
-    members: z.number().min(1).optional()
-});
+const updatePackageSchema = z
+    .object({
+        packageId: z.number().int().min(1), /** Package ID */
+        packageName: z.string().min(1).optional(),
+        tripType: z.enum(["GLOBAL", "LOCAL"]).optional(),
+        price: z.number().min(0).optional(),
+        description: z.string().optional(),
+        isFeatured: z.boolean().optional(),
+        isPrivate: z.boolean().optional(),
+        startDate: z.string().datetime().optional(),
+        endDate: z.string().datetime().optional(),
+        members: z.number().min(1).optional(),
+    })
+    .refine(
+        (data) => {
+            if (data.startDate && data.endDate) {
+                return new Date(data.endDate) > new Date(data.startDate);
+            }
+            return true;
+        },
+        {
+            message: "endDate must be after startDate",
+            path: ["endDate"],
+        }
+    );
 
 /** PUT /packages/update */
 export default async function updatePackageRoute(app: FastifyInstance) {
