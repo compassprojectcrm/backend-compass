@@ -27,7 +27,7 @@ export default async function addTravellersRoute(app: FastifyInstance) {
         {
             preValidation: [
                 app.authenticate,
-                permissionGuard([PERMISSIONS.PACKAGE.UPDATE]),
+                permissionGuard([PERMISSIONS.TRAVELLER.ADD]),
             ],
         },
         async (req: FastifyRequest, reply: FastifyReply) => {
@@ -63,36 +63,44 @@ export default async function addTravellersRoute(app: FastifyInstance) {
                     });
                 }
 
-                /** Create subscriptions in bulk, skipping duplicates or invalid IDs */
-                await prisma.packageSubscription.createMany({
-                    data: travellers.map(t => ({
-                        packageId,
-                        travellerId: t.travellerId,
-                        moneyPaid: t.moneyPaid ?? 0,
-                    })),
-                    skipDuplicates: true,
-                });
+                try {
+                    const createdSubscriptions = await prisma.$transaction(
+                        travellers.map(t =>
+                            prisma.packageSubscription.create({
+                                data: {
+                                    packageId,
+                                    travellerId: t.travellerId,
+                                    moneyPaid: t.moneyPaid ?? 0,
+                                },
+                                select: {
+                                    traveller: {
+                                        select: {
+                                            travellerId: true,
+                                            firstName: true,
+                                            lastName: true,
+                                            email: true,
+                                        },
+                                    },
+                                    moneyPaid: true,
+                                    subscribedAt: true,
+                                },
+                            })
+                        )
+                    );
 
-                /** Fetch created subscriptions for response */
-                const createdSubscriptions = await prisma.packageSubscription.findMany({
-                    where: { packageId },
-                    select: {
-                        traveller: {
-                            select: {
-                                travellerId: true,
-                                firstName: true,
-                                lastName: true,
-                                email: true,
-                            },
-                        },
-                        moneyPaid: true,
-                        subscribedAt: true,
-                    },
-                });
+                    return reply.status(200).send({ travellers: createdSubscriptions });
+                } catch (err: any) {
+                    if (err.code === 'P2002') {
+                        return reply.status(400).send({ error: "One or more travellers are already subscribed" });
+                    } else if (err.code === 'P2003') {
+                        return reply.status(400).send({ error: "One or more travellers do not exist" });
+                    }
 
-                return reply.status(200).send({ travellers: createdSubscriptions });
+                    return reply
+                        .status(500)
+                        .send({ error: CONSTANTS.ERRORS.INTERNAL_SERVER_ERROR });
+                }
             } catch (err) {
-                console.error(err);
                 return reply
                     .status(500)
                     .send({ error: CONSTANTS.ERRORS.INTERNAL_SERVER_ERROR });

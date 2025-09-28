@@ -19,6 +19,9 @@ import deleteDestinationRoute from "./routes/destination/delete-destination";
 import customerSignupRoute from "./routes/auth/traveller_signup";
 import customerLoginRoute from "./routes/auth/traveller_login";
 import verifyCustomerEmailRoute from "./routes/common/search-customer-email";
+import addTravellersRoute from "./routes/traveller/add-traveller";
+import updateTravellersRoute from "./routes/traveller/update-traveller";
+import removeTravellersRoute from "./routes/traveller/remove-traveller";
 
 /** Load environment variables from .env file */
 dotenv.config();
@@ -115,6 +118,11 @@ app.register(getPackagesRoute);
 app.register(createDestinationRoute);
 app.register(updateDestinationRoute);
 app.register(deleteDestinationRoute);
+
+/** traveller */
+app.register(addTravellersRoute);
+app.register(updateTravellersRoute);
+app.register(removeTravellersRoute);
 
 /** Start server */
 app.listen({ port: 3000, host: "0.0.0.0" }, (err, address) => {

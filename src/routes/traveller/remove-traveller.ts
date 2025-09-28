@@ -20,7 +20,7 @@ export default async function removeTravellersRoute(app: FastifyInstance) {
         {
             preValidation: [
                 app.authenticate,
-                permissionGuard([PERMISSIONS.PACKAGE.UPDATE]),
+                permissionGuard([PERMISSIONS.TRAVELLER.REMOVE]),
             ],
         },
         async (req: FastifyRequest, reply: FastifyReply) => {
@@ -47,7 +47,7 @@ export default async function removeTravellersRoute(app: FastifyInstance) {
                 }
 
                 /** Delete subscriptions for provided travellerIds (silently skips invalid IDs) */
-                const result = await prisma.packageSubscription.deleteMany({
+                await prisma.packageSubscription.deleteMany({
                     where: {
                         packageId,
                         travellerId: { in: uniqueTravellerIds },
@@ -57,7 +57,7 @@ export default async function removeTravellersRoute(app: FastifyInstance) {
                 /** Simple success response */
                 return reply
                     .status(200)
-                    .send({ message: "Travellers removed successfully.", deleted: result.count });
+                    .send({ message: "Travellers removed successfully!" });
             } catch (err) {
                 return reply
                     .status(500)

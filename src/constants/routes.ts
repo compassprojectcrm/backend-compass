@@ -24,8 +24,8 @@ export const ROUTES = {
         SEARCH_CUSTOMER_EMAIL: "/search-customer-email",
     },
     TRAVELLER: {
-        UPDATE_TRAVELLER: "/packages/update-traveller",
-        REMOVE_TRAVELLER: "/packages/remove-traveller",
-        ADD_TRAVELLER: "/packages/add-traveller",
+        UPDATE_TRAVELLER: "/packages/traveller/update",
+        REMOVE_TRAVELLER: "/packages/traveller/delete",
+        ADD_TRAVELLER: "/packages/traveller/add",
     }
 };

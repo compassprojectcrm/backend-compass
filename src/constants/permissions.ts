@@ -9,6 +9,12 @@ export const PERMISSIONS = {
         DELETE: { key: "package:delete", roles: [ROLES.AGENT] },
     },
 
+    TRAVELLER: {
+        ADD: { key: "traveller:add", roles: [ROLES.AGENT] },
+        REMOVE: { key: "traveller:remove", roles: [ROLES.AGENT] },
+        UPDATE: { key: "traveller:update", roles: [ROLES.AGENT] },
+    },
+
     DESTINATION: {
         CREATE: { key: "destination:create", roles: [ROLES.AGENT] },
         UPDATE: { key: "destination:update", roles: [ROLES.AGENT] },

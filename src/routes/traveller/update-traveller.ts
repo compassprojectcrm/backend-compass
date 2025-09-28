@@ -28,7 +28,7 @@ export default async function updateTravellersRoute(app: FastifyInstance) {
         {
             preValidation: [
                 app.authenticate,
-                permissionGuard([PERMISSIONS.PACKAGE.UPDATE]),
+                permissionGuard([PERMISSIONS.TRAVELLER.UPDATE]),
             ],
         },
         async (req: FastifyRequest, reply: FastifyReply) => {
@@ -56,23 +56,17 @@ export default async function updateTravellersRoute(app: FastifyInstance) {
                         .send({ error: "Package not found or you do not have permission to modify it." });
                 }
 
-                /** Fetch all existing subscriptions for this package */
-                const existingSubs = await prisma.packageSubscription.findMany({
-                    where: {
-                        packageId,
-                        travellerId: { in: uniqueTravellers.map(t => t.travellerId) },
-                    },
-                });
-
-                const subMap = new Map(existingSubs.map(s => [s.travellerId, s]));
-
-                /** Prepare updates for valid subscriptions */
-                const updates = uniqueTravellers
-                    .filter(t => subMap.has(t.travellerId))
-                    .map(t =>
+                try {
+                    /** Prepare updates for all provided travellers */
+                    const updates = uniqueTravellers.map(t =>
                         prisma.packageSubscription.update({
-                            where: { id: subMap.get(t.travellerId)!.id },
-                            data: { moneyPaid: t.moneyPaid ?? subMap.get(t.travellerId)!.moneyPaid },
+                            where: {
+                                packageId_travellerId: {
+                                    packageId: packageId,
+                                    travellerId: t.travellerId,
+                                }
+                            },
+                            data: { moneyPaid: t.moneyPaid ?? 0 },
                             select: {
                                 traveller: {
                                     select: {
@@ -88,11 +82,20 @@ export default async function updateTravellersRoute(app: FastifyInstance) {
                         })
                     );
 
-                const updatedSubscriptions = updates.length > 0 ? await prisma.$transaction(updates) : [];
+                    const updatedSubscriptions = updates.length > 0 ? await prisma.$transaction(updates) : [];
 
-                return reply.status(200).send({ travellers: updatedSubscriptions });
+                    return reply.status(200).send({ travellers: updatedSubscriptions });
+                } catch (err: any) {
+                    if (err.code === 'P2025') {
+                        // Record to update was not found
+                        return reply.status(400).send({ error: "One or more subscriptions do not exist" });
+                    }
+
+                    return reply
+                        .status(500)
+                        .send({ error: CONSTANTS.ERRORS.INTERNAL_SERVER_ERROR });
+                }
             } catch (err) {
-                console.error(err);
                 return reply
                     .status(500)
                     .send({ error: CONSTANTS.ERRORS.INTERNAL_SERVER_ERROR });
