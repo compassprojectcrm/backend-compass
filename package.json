@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-      "dev": "ts-node src/server.ts",
-      "build": "prisma generate && tsc",
-      "start": "node dist/server.js"
+    "dev": "ts-node src/server.ts",
+    "build": "prisma generate && tsc --noEmitOnError false",
+    "postinstall": "prisma generate",
+    "start": "node dist/server.js"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
