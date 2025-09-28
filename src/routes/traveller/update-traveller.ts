@@ -10,12 +10,15 @@ import { PERMISSIONS } from "../../constants/permissions";
 /** Zod schema for updating multiple traveller subscriptions */
 const updateTravellersSchema = z.object({
     packageId: z.number().int().positive(),
-    travellers: z.array(
-        z.object({
-            travellerId: z.number().int().positive(),
-            moneyPaid: z.number().min(0).optional(),
-        })
-    ).nonempty()
+    travellers: z
+        .array(
+            z.object({
+                travellerId: z.number().int().positive(),
+                moneyPaid: z.number().min(0).optional(),
+            })
+        )
+        .nonempty()
+        .max(100),
 });
 
 /** PUT /packages/update-travellers */
@@ -37,47 +40,57 @@ export default async function updateTravellersRoute(app: FastifyInstance) {
 
                 const { packageId, travellers } = parsed.data;
 
+                /** Deduplicate traveller IDs (last occurrence wins) */
+                const uniqueTravellersMap = new Map<number, { travellerId: number; moneyPaid?: number }>();
+                travellers.forEach(t => uniqueTravellersMap.set(t.travellerId, t));
+                const uniqueTravellers = Array.from(uniqueTravellersMap.values());
+
                 /** Ensure package exists and belongs to agent */
                 const pkg = await prisma.package.findFirst({
                     where: { packageId, agentId: req.user.id },
                 });
+
                 if (!pkg) {
                     return reply
                         .status(404)
-                        .send({ error: "Package not found or not owned by agent" });
+                        .send({ error: "Package not found or you do not have permission to modify it." });
                 }
 
-                const updatedSubscriptions = [];
+                /** Fetch all existing subscriptions for this package */
+                const existingSubs = await prisma.packageSubscription.findMany({
+                    where: {
+                        packageId,
+                        travellerId: { in: uniqueTravellers.map(t => t.travellerId) },
+                    },
+                });
 
-                for (const t of travellers) {
-                    /** Find subscription */
-                    const subscription = await prisma.packageSubscription.findFirst({
-                        where: { packageId, travellerId: t.travellerId },
-                    });
-                    if (!subscription) continue;
+                const subMap = new Map(existingSubs.map(s => [s.travellerId, s]));
 
-                    /** Update subscription */
-                    const updated = await prisma.packageSubscription.update({
-                        where: { id: subscription.id },
-                        data: { moneyPaid: t.moneyPaid ?? subscription.moneyPaid },
-                        select: {
-                            traveller: {
-                                select: {
-                                    travellerId: true,
-                                    firstName: true,
-                                    lastName: true,
-                                    email: true,
+                /** Prepare updates for valid subscriptions */
+                const updates = uniqueTravellers
+                    .filter(t => subMap.has(t.travellerId))
+                    .map(t =>
+                        prisma.packageSubscription.update({
+                            where: { id: subMap.get(t.travellerId)!.id },
+                            data: { moneyPaid: t.moneyPaid ?? subMap.get(t.travellerId)!.moneyPaid },
+                            select: {
+                                traveller: {
+                                    select: {
+                                        travellerId: true,
+                                        firstName: true,
+                                        lastName: true,
+                                        email: true,
+                                    },
                                 },
+                                moneyPaid: true,
+                                subscribedAt: true,
                             },
-                            moneyPaid: true,
-                            subscribedAt: true,
-                        },
-                    });
+                        })
+                    );
 
-                    updatedSubscriptions.push(updated);
-                }
+                const updatedSubscriptions = updates.length > 0 ? await prisma.$transaction(updates) : [];
 
-                return reply.status(200).send({ subscriptions: updatedSubscriptions });
+                return reply.status(200).send({ travellers: updatedSubscriptions });
             } catch (err) {
                 console.error(err);
                 return reply

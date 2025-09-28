@@ -10,7 +10,7 @@ import { PERMISSIONS } from "../../constants/permissions";
 /** Zod schema */
 const removeTravellersSchema = z.object({
     packageId: z.number().int().positive(),
-    travellerIds: z.array(z.number().int().positive()).nonempty(),
+    travellerIds: z.array(z.number().int().positive()).nonempty().max(100),
 });
 
 /** DELETE /packages/remove-travellers */
@@ -32,38 +32,33 @@ export default async function removeTravellersRoute(app: FastifyInstance) {
 
                 const { packageId, travellerIds } = parsed.data;
 
+                /** Deduplicate traveller IDs to avoid redundant DB operations */
+                const uniqueTravellerIds = Array.from(new Set(travellerIds));
+
                 /** Ensure package exists and belongs to agent */
                 const pkg = await prisma.package.findFirst({
                     where: { packageId, agentId: req.user.id },
                 });
+
                 if (!pkg) {
-                    return reply
-                        .status(404)
-                        .send({ error: "Package not found or not owned by agent" });
+                    return reply.status(404).send({
+                        error: "Package not found or you are not authorized to modify it.",
+                    });
                 }
 
-                /** Delete subscriptions for provided travellerIds */
-                await prisma.packageSubscription.deleteMany({
+                /** Delete subscriptions for provided travellerIds (silently skips invalid IDs) */
+                const result = await prisma.packageSubscription.deleteMany({
                     where: {
                         packageId,
-                        travellerId: { in: travellerIds },
+                        travellerId: { in: uniqueTravellerIds },
                     },
                 });
 
-                /** Return updated travellers list */
-                const updatedTravellers = await prisma.packageSubscription.findMany({
-                    where: { packageId },
-                    select: {
-                        traveller: {
-                            select: { travellerId: true, firstName: true, lastName: true, email: true },
-                        },
-                        subscribedAt: true,
-                    },
-                });
-
-                return reply.status(200).send({ travellers: updatedTravellers });
+                /** Simple success response */
+                return reply
+                    .status(200)
+                    .send({ message: "Travellers removed successfully.", deleted: result.count });
             } catch (err) {
-                console.error(err);
                 return reply
                     .status(500)
                     .send({ error: CONSTANTS.ERRORS.INTERNAL_SERVER_ERROR });

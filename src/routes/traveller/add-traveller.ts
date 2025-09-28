@@ -10,12 +10,14 @@ import { PERMISSIONS } from "../../constants/permissions";
 /** Zod schema */
 const addTravellersSchema = z.object({
     packageId: z.number().int().positive(),
-    travellers: z.array(
-        z.object({
-            travellerId: z.number().int().positive(),
-            moneyPaid: z.number().min(0).optional().default(0),
-        })
-    ).nonempty(),
+    travellers: z
+        .array(
+            z.object({
+                travellerId: z.number().int().positive(),
+                moneyPaid: z.number().min(0).optional().default(0),
+            })
+        )
+        .nonempty(),
 });
 
 /** POST /packages/add-travellers */
@@ -40,69 +42,53 @@ export default async function addTravellersRoute(app: FastifyInstance) {
                 /** Ensure package exists and belongs to the agent */
                 const pkg = await prisma.package.findFirst({
                     where: { packageId, agentId: req.user.id },
+                    select: { packageId: true, members: true },
                 });
+
                 if (!pkg) {
                     return reply
                         .status(404)
-                        .send({ error: "Package not found or not owned by agent" });
+                        .send({ error: "Package not found or you do not have permission to modify it." });
                 }
 
-                /** Filter out travellerIds already subscribed */
-                const existingSubscriptions = await prisma.packageSubscription.findMany({
-                    where: { packageId, travellerId: { in: travellers.map(t => t.travellerId) } },
-                    select: { travellerId: true },
+                /** Count current subscribers */
+                const currentCount = await prisma.packageSubscription.count({
+                    where: { packageId },
                 });
-                const alreadySubscribedIds = new Set(
-                    existingSubscriptions.map((s) => s.travellerId)
-                );
-                const newTravellers = travellers.filter(
-                    (t) => !alreadySubscribedIds.has(t.travellerId)
-                );
 
-                if (newTravellers.length === 0) {
-                    return reply.status(400).send({ error: "All travellers are already subscribed" });
-                }
-
-                /** Ensure travellers exist */
-                const existingTravellerRecords = await prisma.traveller.findMany({
-                    where: { travellerId: { in: newTravellers.map(t => t.travellerId) } },
-                    select: { travellerId: true },
-                });
-                const existingTravellerIds = new Set(
-                    existingTravellerRecords.map((t) => t.travellerId)
-                );
-                const validTravellers = newTravellers.filter((t) =>
-                    existingTravellerIds.has(t.travellerId)
-                );
-
-                if (validTravellers.length === 0) {
-                    return reply.status(404).send({ error: "No valid travellers found to subscribe" });
-                }
-
-                /** Create subscriptions individually to handle moneyPaid */
-                const createdSubscriptions = [];
-                for (const t of validTravellers) {
-                    const subscription = await prisma.packageSubscription.create({
-                        data: {
-                            packageId,
-                            travellerId: t.travellerId,
-                            moneyPaid: t.moneyPaid ?? 0,
-                        },
-                        select: {
-                            traveller: {
-                                select: {
-                                    travellerId: true,
-                                    firstName: true,
-                                    lastName: true,
-                                    email: true,
-                                },
-                            },
-                            moneyPaid: true,
-                            subscribedAt: true,
-                        },
+                /** Check if adding these travellers exceeds members limit */
+                if (currentCount + travellers.length > pkg.members) {
+                    return reply.status(400).send({
+                        error: `Cannot add travellers. Package allows a maximum of ${pkg.members} members.`,
                     });
-                    createdSubscriptions.push(subscription);
                 }
+
+                /** Create subscriptions in bulk, skipping duplicates or invalid IDs */
+                await prisma.packageSubscription.createMany({
+                    data: travellers.map(t => ({
+                        packageId,
+                        travellerId: t.travellerId,
+                        moneyPaid: t.moneyPaid ?? 0,
+                    })),
+                    skipDuplicates: true,
+                });
+
+                /** Fetch created subscriptions for response */
+                const createdSubscriptions = await prisma.packageSubscription.findMany({
+                    where: { packageId },
+                    select: {
+                        traveller: {
+                            select: {
+                                travellerId: true,
+                                firstName: true,
+                                lastName: true,
+                                email: true,
+                            },
+                        },
+                        moneyPaid: true,
+                        subscribedAt: true,
+                    },
+                });
 
                 return reply.status(200).send({ travellers: createdSubscriptions });
             } catch (err) {
