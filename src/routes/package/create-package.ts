@@ -22,7 +22,7 @@ const createPackageSchema = z
         /** Optional: copy destinations from another package */
         copyDestinationsFromPackageId: z.number().optional(),
 
-        /** Destinations to create */
+        /** Destinations to create (max 20 per request) */
         destinations: z
             .array(
                 z.object({
@@ -33,11 +33,16 @@ const createPackageSchema = z
                     cityId: z.number(),
                 })
             )
+            .max(20, "You can only add up to 20 destinations at a time")
             .optional()
             .default([]),
 
-        /** Travellers to subscribe at creation */
-        travellerIds: z.array(z.number()).optional().default([]),
+        /** Travellers to subscribe at creation (max 100 per request) */
+        travellerIds: z
+            .array(z.number())
+            .max(100, "You can only add up to 100 travellers at a time")
+            .optional()
+            .default([]),
     })
     .refine((data) => new Date(data.endDate) > new Date(data.startDate), {
         message: "endDate must be after startDate",
@@ -99,7 +104,7 @@ export default async function createPackageRoute(app: FastifyInstance) {
                     });
 
                     if (!sourcePackage) {
-                        return reply.status(404).send({ error: "package not found!" });
+                        return reply.status(404).send({ error: "package not found or not owned by agent" });
                     }
 
                     finalDestinations = [

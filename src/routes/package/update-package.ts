@@ -52,12 +52,17 @@ export default async function updatePackageRoute(app: FastifyInstance) {
             const { packageId, ...updateData } = parsed.data;
 
             /** Check if the package exists and belongs to this agent */
-            const existingPackage = await prisma.package.findUnique({
-                where: { packageId },
+            const existingPackage = await prisma.package.findFirst({
+                where: {
+                    packageId,
+                    agentId: req.user.id,
+                },
             });
 
-            if (!existingPackage || existingPackage.agentId !== req.user.id) {
-                return reply.status(404).send({ error: CONSTANTS.ERRORS.NOT_FOUND });
+            if (!existingPackage) {
+                return reply
+                    .status(404)
+                    .send({ error: "package not found or not owned by agent" });
             }
 
             /** Update the package */
