@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "ts-node src/server.ts",
-    "build": "prisma generate && tsc --noEmitOnError false",
+    "build": "prisma generate && tsc",
     "postinstall": "prisma generate",
     "start": "node dist/server.js"
   },
