@@ -18,11 +18,10 @@ const updateDestinationsSchema = z.object({
             startDate: z.string().datetime().optional(),
             endDate: z.string().datetime().optional(),
             cityId: z.number().int().positive().optional()
-        })
-            .refine(
-                (data) => !data.startDate || !data.endDate || new Date(data.endDate) > new Date(data.startDate),
-                { message: "endDate must be after startDate", path: ["endDate"] }
-            )
+        }).refine(
+            (data) => !data.startDate || !data.endDate || new Date(data.endDate) > new Date(data.startDate),
+            { message: "endDate must be after startDate", path: ["endDate"] }
+        )
     ).nonempty()
 });
 
@@ -46,10 +45,11 @@ export default async function updateDestinationRoute(app: FastifyInstance) {
                 const { packageId, destinations } = parsed.data;
 
                 /** Ensure package exists and belongs to agent */
-                const pkg = await prisma.package.findUnique({
-                    where: { packageId },
+                const pkg = await prisma.package.findFirst({
+                    where: { packageId, agentId: req.user.id },
                 });
-                if (!pkg || pkg.agentId !== req.user.id) {
+
+                if (!pkg) {
                     return reply.status(404).send({ error: "Package not found or not owned by agent" });
                 }
 
@@ -58,56 +58,52 @@ export default async function updateDestinationRoute(app: FastifyInstance) {
                 const validDestinations = await prisma.destination.findMany({
                     where: { destinationId: { in: destinationIds }, packageId },
                 });
+
                 const validDestinationIds = new Set(validDestinations.map(d => d.destinationId));
 
-                const updatedResults: any[] = [];
-
-                for (const data of destinations) {
-                    const { destinationId, ...updateData } = data;
-
-                    if (!validDestinationIds.has(destinationId)) continue;
-
-                    /** Update destination */
-                    const updatedDestination = await prisma.destination.update({
-                        where: { destinationId },
-                        data: {
-                            ...updateData,
-                            ...(updateData.startDate && { startDate: new Date(updateData.startDate) }),
-                            ...(updateData.endDate && { endDate: new Date(updateData.endDate) }),
-                        },
-                        select: {
-                            destinationId: true,
-                            title: true,
-                            description: true,
-                            startDate: true,
-                            endDate: true,
-                            city: {
+                /** Use a transaction to update all valid destinations */
+                const updatedResults = await prisma.$transaction(
+                    destinations
+                        .filter(d => validDestinationIds.has(d.destinationId))
+                        .map(({ destinationId, ...updateData }) =>
+                            prisma.destination.update({
+                                where: { destinationId },
+                                data: {
+                                    ...updateData,
+                                    ...(updateData.startDate && { startDate: new Date(updateData.startDate) }),
+                                    ...(updateData.endDate && { endDate: new Date(updateData.endDate) }),
+                                },
                                 select: {
-                                    cityId: true,
-                                    cityName: true,
-                                    state: {
+                                    destinationId: true,
+                                    title: true,
+                                    description: true,
+                                    startDate: true,
+                                    endDate: true,
+                                    city: {
                                         select: {
-                                            stateId: true,
-                                            stateName: true,
-                                            country: {
+                                            cityId: true,
+                                            cityName: true,
+                                            state: {
                                                 select: {
-                                                    countryId: true,
-                                                    countryName: true
+                                                    stateId: true,
+                                                    stateName: true,
+                                                    country: {
+                                                        select: {
+                                                            countryId: true,
+                                                            countryName: true
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
                                     }
                                 }
-                            }
-                        }
-                    });
-
-                    updatedResults.push(updatedDestination);
-                }
+                            })
+                        )
+                );
 
                 return reply.status(200).send({ destinations: updatedResults });
             } catch (err) {
-                console.error(err);
                 return reply.status(500).send({ error: CONSTANTS.ERRORS.INTERNAL_SERVER_ERROR });
             }
         }

@@ -18,8 +18,8 @@ export default async function deleteDestinationRoute(app: FastifyInstance) {
     app.delete(ROUTES.DESTINATION.DELETE, {
         preValidation: [
             app.authenticate,
-            permissionGuard([PERMISSIONS.DESTINATION.DELETE])
-        ]
+            permissionGuard([PERMISSIONS.DESTINATION.DELETE]),
+        ],
     }, async (req: FastifyRequest, reply: FastifyReply) => {
         try {
             /** Validate request body */
@@ -31,37 +31,26 @@ export default async function deleteDestinationRoute(app: FastifyInstance) {
             const { packageId, destinationIds } = parsed.data;
 
             /** Ensure package exists and belongs to the agent */
-            const pkg = await prisma.package.findUnique({
-                where: { packageId },
-            });
-            if (!pkg || pkg.agentId !== req.user.id) {
-                return reply.status(404).send({ error: "Package not found!" });
-            }
-
-            /** Fetch destinations to ensure they belong to this package */
-            const destinations = await prisma.destination.findMany({
-                where: { destinationId: { in: destinationIds }, packageId },
+            const pkg = await prisma.package.findFirst({
+                where: { packageId, agentId: req.user.id },
             });
 
-            if (destinations.length === 0) {
-                return reply.status(404).send({ error: "No destinations found for this package!" });
+            if (!pkg) {
+                return reply.status(404).send({ error: "Package not found or not owned by you" });
             }
 
-            /** Check if any provided IDs do not exist in the package */
-            const fetchedIds = new Set(destinations.map(d => d.destinationId));
-            const invalidIds = destinationIds.filter(id => !fetchedIds.has(id));
-            if (invalidIds.length > 0) {
-                return reply.status(400).send({
-                    error: "Some destinations are invalid for this package!"
-                });
-            }
-
-            /** Delete destinations */
-            await prisma.destination.deleteMany({
-                where: { destinationId: { in: destinationIds } }
+            /** Delete destinations (silently skips invalid IDs) */
+            const result = await prisma.destination.deleteMany({
+                where: {
+                    destinationId: { in: destinationIds },
+                    packageId,
+                },
             });
 
-            return reply.status(200).send({ message: "Destinations deleted successfully!" });
+            return reply.status(200).send({
+                message: "Destinations deleted successfully!",
+                deleted: result.count
+            });
         } catch (err) {
             console.error(err);
             return reply.status(500).send({ error: CONSTANTS.ERRORS.INTERNAL_SERVER_ERROR });

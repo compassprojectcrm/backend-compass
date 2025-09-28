@@ -110,6 +110,7 @@ export default async function getPackagesRoute(app: FastifyInstance) {
                                             },
                                         },
                                         subscribedAt: true,
+                                        moneyPaid: true,
                                     },
                                 },
                             }

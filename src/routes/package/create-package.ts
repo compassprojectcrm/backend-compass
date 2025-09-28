@@ -93,8 +93,8 @@ export default async function createPackageRoute(app: FastifyInstance) {
 
                 let finalDestinations = destinations;
 
-                /** Copy destinations from another package if requested */
-                if (copyDestinationsFromPackageId) {
+                /** Copy destinations from another package only if no destinations are provided */
+                if (finalDestinations.length === 0 && copyDestinationsFromPackageId) {
                     const sourcePackage = await prisma.package.findUnique({
                         where: {
                             packageId: copyDestinationsFromPackageId,
@@ -107,16 +107,13 @@ export default async function createPackageRoute(app: FastifyInstance) {
                         return reply.status(404).send({ error: "package not found or not owned by agent" });
                     }
 
-                    finalDestinations = [
-                        ...finalDestinations,
-                        ...sourcePackage.destinations.map((d) => ({
-                            title: d.title,
-                            description: d.description ?? undefined,
-                            startDate: d.startDate.toISOString(),
-                            endDate: d.endDate.toISOString(),
-                            cityId: d.cityId,
-                        })),
-                    ];
+                    finalDestinations = sourcePackage.destinations.map((d) => ({
+                        title: d.title,
+                        description: d.description ?? undefined,
+                        startDate: d.startDate.toISOString(),
+                        endDate: d.endDate.toISOString(),
+                        cityId: d.cityId,
+                    }));
                 }
 
                 /** Validate travellerIds */
@@ -229,6 +226,7 @@ export default async function createPackageRoute(app: FastifyInstance) {
                                     },
                                 },
                                 subscribedAt: true,
+                                moneyPaid: true,
                             }
                         }
                     },

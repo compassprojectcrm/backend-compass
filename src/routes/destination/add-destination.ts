@@ -17,11 +17,10 @@ const createDestinationsSchema = z.object({
             description: z.string().optional(),
             startDate: z.string().datetime(),
             endDate: z.string().datetime(),
-        })
-            .refine(
-                (data) => new Date(data.endDate) > new Date(data.startDate),
-                { message: "endDate must be after startDate", path: ["endDate"] }
-            )
+        }).refine(
+            (data) => new Date(data.endDate) > new Date(data.startDate),
+            { message: "endDate must be after startDate", path: ["endDate"] }
+        )
     ).nonempty(),
 });
 
@@ -46,37 +45,72 @@ export default async function createDestinationRoute(app: FastifyInstance) {
             const pkg = await prisma.package.findFirst({
                 where: { packageId, agentId: req.user.id }
             });
+
             if (!pkg) {
-                return reply.status(404).send({ error: "Package not found!" });
+                return reply.status(404).send({ error: "Package not found or not owned by agent" });
             }
 
             /** Validate that all cities exist */
             const cityIds = destinations.map(d => d.cityId);
+
             const existingCities = await prisma.city.findMany({
                 where: { cityId: { in: cityIds } },
                 select: { cityId: true },
             });
+
             const existingCityIds = new Set(existingCities.map(c => c.cityId));
             const invalidCities = destinations.filter(d => !existingCityIds.has(d.cityId));
+
             if (invalidCities.length > 0) {
                 return reply.status(404).send({
-                    error: "Some cities do not exist!"
+                    error: "One or more city IDs are invalid!"
                 });
             }
 
-            /** Create all destinations */
-            await prisma.destination.createMany({
-                data: destinations.map(d => ({
-                    title: d.title,
-                    description: d.description ?? null,
-                    startDate: new Date(d.startDate),
-                    endDate: new Date(d.endDate),
-                    cityId: d.cityId,
-                    packageId,
-                })),
-            });
+            /** Create all destinations inside a transaction and return them with city, state, country */
+            const createdDestinations = await prisma.$transaction(
+                destinations.map(d =>
+                    prisma.destination.create({
+                        data: {
+                            title: d.title,
+                            description: d.description ?? null,
+                            startDate: new Date(d.startDate),
+                            endDate: new Date(d.endDate),
+                            cityId: d.cityId,
+                            packageId,
+                        },
+                        select: {
+                            destinationId: true,
+                            title: true,
+                            description: true,
+                            startDate: true,
+                            endDate: true,
+                            city: {
+                                select: {
+                                    cityId: true,
+                                    cityName: true,
+                                    state: {
+                                        select: {
+                                            stateId: true,
+                                            stateName: true,
+                                            country: {
+                                                select: {
+                                                    countryId: true,
+                                                    countryName: true,
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                    })
+                )
+            );
 
-            return reply.status(201).send({ message: "Destinations added successfully" });
+            return reply.status(201).send({
+                destinations: createdDestinations
+            });
         } catch (err) {
             console.error(err);
             return reply.status(500).send({ error: CONSTANTS.ERRORS.INTERNAL_SERVER_ERROR });
