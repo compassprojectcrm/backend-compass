@@ -64,7 +64,7 @@ export default async function verifyCustomerEmailRoute(app: FastifyInstance) {
 
                     for (const email of candidates) {
                         if (emailToTravellerId.has(email)) {
-                            result[email] = { exists: true, travellerId: emailToTravellerId.get(email) };
+                            result[email] = { exists: true };
                         } else {
                             result[email] = { exists: false };
                         }
@@ -74,7 +74,6 @@ export default async function verifyCustomerEmailRoute(app: FastifyInstance) {
                 /** Send final results */
                 return reply.status(200).send(result);
             } catch (error) {
-                console.error(error);
                 return reply
                     .status(500)
                     .send({ error: CONSTANTS.ERRORS.INTERNAL_SERVER_ERROR });

@@ -2,7 +2,7 @@ export const CONSTANTS = {
     APP_NAME: "Compass",
     JWT: {
         SECRET: process.env.JWT_SECRET,
-        EXPIRES_IN: "1h",
+        EXPIRES_IN: "3h",
         REFRESH_EXPIRES_IN: "7d",
     },
     ERRORS: {

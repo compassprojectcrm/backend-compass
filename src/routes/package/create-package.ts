@@ -38,8 +38,8 @@ const createPackageSchema = z
             .default([]),
 
         /** Travellers to subscribe at creation (max 100 per request) */
-        travellerIds: z
-            .array(z.number())
+        travellerEmails: z
+            .array(z.string().email())
             .max(100, "You can only add up to 100 travellers at a time")
             .optional()
             .default([]),
@@ -88,7 +88,7 @@ export default async function createPackageRoute(app: FastifyInstance) {
                     members,
                     destinations,
                     copyDestinationsFromPackageId,
-                    travellerIds,
+                    travellerEmails,
                 } = parsed.data;
 
                 let finalDestinations = destinations;
@@ -116,19 +116,22 @@ export default async function createPackageRoute(app: FastifyInstance) {
                     }));
                 }
 
-                /** Validate travellerIds */
-                if (travellerIds.length > 0) {
+                /** Validate travellerEmails */
+                let validTravellerIds: number[] = [];
+                if (travellerEmails.length > 0) {
                     const validTravellers = await prisma.traveller.findMany({
                         where: {
-                            travellerId: { in: travellerIds }
+                            email: { in: travellerEmails }
                         },
-                        select: { travellerId: true },
+                        select: { travellerId: true, email: true },
                     });
 
-                    const validTravellerIds = validTravellers.map((t) => t.travellerId);
-                    if (validTravellerIds.length !== travellerIds.length) {
-                        return reply.status(400).send({ error: "One or more traveller IDs are invalid!" });
+                    const validEmails = validTravellers.map((t) => t.email);
+                    if (validEmails.length !== travellerEmails.length) {
+                        return reply.status(400).send({ error: "One or more traveller emails are invalid!" });
                     }
+
+                    validTravellerIds = validTravellers.map((t) => t.travellerId);
                 }
 
                 /** Validate cityIds in destinations */
@@ -172,7 +175,7 @@ export default async function createPackageRoute(app: FastifyInstance) {
 
                         /** Subscribe travellers */
                         subscriptions: {
-                            create: travellerIds.map((travellerId) => ({
+                            create: validTravellerIds.map((travellerId) => ({
                                 traveller: { connect: { travellerId } },
                             })),
                         },
