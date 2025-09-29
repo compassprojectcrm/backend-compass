@@ -10,7 +10,7 @@ import { PERMISSIONS } from "../../constants/permissions";
 /** Zod schema */
 const removeTravellersSchema = z.object({
     packageId: z.number().int().positive(),
-    travellerIds: z.array(z.number().int().positive()).nonempty().max(100),
+    emails: z.array(z.string().email()).nonempty().max(100),
 });
 
 /** DELETE /packages/remove-travellers */
@@ -30,10 +30,7 @@ export default async function removeTravellersRoute(app: FastifyInstance) {
                     return reply.status(400).send(parsed.error.format());
                 }
 
-                const { packageId, travellerIds } = parsed.data;
-
-                /** Deduplicate traveller IDs to avoid redundant DB operations */
-                const uniqueTravellerIds = Array.from(new Set(travellerIds));
+                const { packageId, emails } = parsed.data;
 
                 /** Ensure package exists and belongs to agent */
                 const pkg = await prisma.package.findFirst({
@@ -46,18 +43,17 @@ export default async function removeTravellersRoute(app: FastifyInstance) {
                     });
                 }
 
-                /** Delete subscriptions for provided travellerIds (silently skips invalid IDs) */
+                /** Delete by traveller email (fail silently if none exist) */
                 await prisma.packageSubscription.deleteMany({
                     where: {
                         packageId,
-                        travellerId: { in: uniqueTravellerIds },
+                        traveller: { email: { in: emails } },
                     },
                 });
 
-                /** Simple success response */
-                return reply
-                    .status(200)
-                    .send({ message: "Travellers removed successfully!" });
+                return reply.status(200).send({
+                    message: "Travellers removed successfully!",
+                });
             } catch (err) {
                 return reply
                     .status(500)

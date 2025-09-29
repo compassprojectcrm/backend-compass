@@ -13,7 +13,7 @@ const updateTravellersSchema = z.object({
     travellers: z
         .array(
             z.object({
-                travellerId: z.number().int().positive(),
+                email: z.string().email(),
                 moneyPaid: z.number().min(0).optional(),
             })
         )
@@ -40,9 +40,9 @@ export default async function updateTravellersRoute(app: FastifyInstance) {
 
                 const { packageId, travellers } = parsed.data;
 
-                /** Deduplicate traveller IDs (last occurrence wins) */
-                const uniqueTravellersMap = new Map<number, { travellerId: number; moneyPaid?: number }>();
-                travellers.forEach(t => uniqueTravellersMap.set(t.travellerId, t));
+                /** Deduplicate by email (last occurrence wins) */
+                const uniqueTravellersMap = new Map<string, { email: string; moneyPaid?: number }>();
+                travellers.forEach(t => uniqueTravellersMap.set(t.email, t));
                 const uniqueTravellers = Array.from(uniqueTravellersMap.values());
 
                 /** Ensure package exists and belongs to agent */
@@ -56,6 +56,25 @@ export default async function updateTravellersRoute(app: FastifyInstance) {
                         .send({ error: "Package not found or you do not have permission to modify it." });
                 }
 
+                /** Validate emails → resolve travellerIds */
+                const emails = uniqueTravellers.map(t => t.email);
+                const validTravellers = await prisma.traveller.findMany({
+                    where: { email: { in: emails } },
+                    select: { travellerId: true, email: true },
+                });
+
+                const foundEmails = validTravellers.map(t => t.email);
+                const missingEmails = emails.filter(e => !foundEmails.includes(e));
+
+                if (missingEmails.length > 0) {
+                    return reply.status(400).send({
+                        error: `The following travellers do not exist: ${missingEmails.join(", ")}`
+                    });
+                }
+
+                /** Map emails → travellerIds */
+                const emailToId = new Map(validTravellers.map(t => [t.email, t.travellerId]));
+
                 try {
                     /** Prepare updates for all provided travellers */
                     const updates = uniqueTravellers.map(t =>
@@ -63,7 +82,7 @@ export default async function updateTravellersRoute(app: FastifyInstance) {
                             where: {
                                 packageId_travellerId: {
                                     packageId: packageId,
-                                    travellerId: t.travellerId,
+                                    travellerId: emailToId.get(t.email)!,
                                 }
                             },
                             data: { moneyPaid: t.moneyPaid ?? 0 },
