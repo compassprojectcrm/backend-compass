@@ -17,40 +17,47 @@ export const signupSchema = z.object({
     password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
-/** Signup route for creating a new agent with a default team */
+/** Signup route for creating a new traveller */
 export default async function customerSignupRoute(app: FastifyInstance) {
     app.post(ROUTES.AUTH.TRAVELLER_SIGNUP, async (req: FastifyRequest, reply: FastifyReply) => {
+        app.log.debug("Traveller signup request received");
+
         try {
             /** Parse and validate request body */
             const parsed = signupSchema.safeParse(req.body);
-            if (!parsed.success) return reply.status(400).send(parsed.error.format());
+            if (!parsed.success) {
+                app.log.debug({ issues: parsed.error.issues }, "Traveller signup validation failed");
+                return reply.status(400).send(parsed.error.format());
+            }
 
             const { firstName, lastName, email, password } = parsed.data;
+            app.log.debug({ email }, "Parsed traveller signup data (password omitted)");
 
             /** Check if user already exists */
             const existingTraveller = await prisma.traveller.findUnique({ where: { email } });
             if (existingTraveller) {
+                app.log.debug({ email }, "Traveller already exists");
                 return reply.status(400).send({ error: "User already exists!" });
             }
+
+            app.log.debug({ email }, "Hashing password and creating traveller");
 
             /** Hash the password */
             const passwordHash = await bcrypt.hash(password, 10);
 
-            /** 
-             * Create agent and default team in a single query 
-             * Ensures that every agent has one team automatically
-             */
+            /** Create traveller */
             const traveller = await prisma.traveller.create({
                 data: {
                     firstName,
                     lastName,
                     email,
-                    password: passwordHash
-                }
+                    password: passwordHash,
+                },
             });
 
-            /** insert the new email in the bloom filter */
+            /** Insert the new email in the bloom filter */
             addEmailsToFilter([email]);
+            app.log.debug({ email }, "Email added to bloom filter");
 
             /** Generate JWT token */
             const token = app.jwt.sign({
@@ -59,14 +66,15 @@ export default async function customerSignupRoute(app: FastifyInstance) {
                 permissions: getPermissionKeysByRole(ROLES.TRAVELLER),
             });
 
-            /** Return success response with user info and default team */
+            app.log.info({ travellerId: traveller.travellerId, email: traveller.email }, "Traveller signup successful");
+
+            /** Return success response */
             return reply.send({
                 message: "Signup successful",
-                token
+                token,
             });
         } catch (err) {
-            /** Log error and return internal server error */
-            app.log.error(err);
+            app.log.error({ err }, "Unexpected error during traveller signup");
             return reply.status(500).send({ error: CONSTANTS.ERRORS.INTERNAL_SERVER_ERROR });
         }
     });

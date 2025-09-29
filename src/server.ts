@@ -26,45 +26,44 @@ import removeTravellersRoute from "./routes/traveller/remove-traveller";
 /** Load environment variables from .env file */
 dotenv.config();
 
+const isProd = process.env.NODE_ENV === "production";
+
 const app = Fastify({
   logger: {
-    level: 'info',
+    level: isProd ? "info" : "trace",
     transport: {
-      targets: [
-        /** Console pretty logs only in dev */
-        ...(process.env.NODE_ENV !== 'production'
-          ? [
-            {
-              target: 'pino-pretty',
-              level: 'info',
-              options: {
-                colorize: true,
-                translateTime: 'SYS:standard',
-              },
+      targets: isProd
+        ? [
+          // Production → only error logs to file
+          {
+            target: "pino/file",
+            level: "error",
+            options: {
+              destination: "./logs/error.log",
+              mkdir: true,
             },
-          ]
-          : []),
-
-        /** All logs file (info and above) */
-        {
-          target: 'pino/file',
-          level: 'info',
-          options: {
-            destination: './logs/server.log',
-            mkdir: true,
           },
-        },
-
-        /** Only error logs file */
-        {
-          target: 'pino/file',
-          level: 'error',
-          options: {
-            destination: './logs/error.log',
-            mkdir: true,
+        ]
+        : [
+          // Development → pretty console + debug file
+          {
+            target: "pino-pretty",
+            level: "trace",
+            options: {
+              colorize: true,
+              translateTime: "SYS:standard",
+              singleLine: false,
+            },
           },
-        },
-      ],
+          {
+            target: "pino/file",
+            level: "debug",
+            options: {
+              destination: "./logs/debug.log",
+              mkdir: true,
+            },
+          },
+        ],
     },
   },
 });
