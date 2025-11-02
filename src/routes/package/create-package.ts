@@ -10,7 +10,7 @@ import { PERMISSIONS } from "../../constants/permissions";
 const createPackageSchema = z
     .object({
         packageName: z.string().min(1),
-        tripType: z.enum(["GLOBAL", "LOCAL"]),
+        tripType: z.enum(["INTERNATIONAL", "DOMESTIC"]),
         price: z.number().min(0),
         description: z.string().optional(),
         isFeatured: z.boolean().optional().default(false),

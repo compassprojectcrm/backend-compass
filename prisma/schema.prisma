@@ -61,13 +61,12 @@ model PackageSubscription {
 
 enum PackageStatus {
   ACTIVE
-  INACTIVE
-  ARCHIVED
+  DRAFT
 }
 
 enum TripType {
-  GLOBAL
-  LOCAL
+  INTERNATIONAL
+  DOMESTIC
 }
 
 model Country {

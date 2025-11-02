@@ -12,7 +12,7 @@ const updatePackageSchema = z
     .object({
         packageId: z.number().int().min(1), /** Package ID */
         packageName: z.string().min(1).optional(),
-        tripType: z.enum(["GLOBAL", "LOCAL"]).optional(),
+        tripType: z.enum(["INTERNATIONAL", "DOMESTIC"]).optional(),
         price: z.number().min(0).optional(),
         description: z.string().optional(),
         isFeatured: z.boolean().optional(),
