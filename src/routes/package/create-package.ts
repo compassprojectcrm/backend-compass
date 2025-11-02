@@ -70,9 +70,17 @@ export default async function createPackageRoute(app: FastifyInstance) {
             ],
         },
         async (req: FastifyRequest, reply: FastifyReply) => {
+            const agentId = (req.user as any)?.id;
+            app.log.info({ agentId }, "Incoming create package request");
+
             try {
+                /** Validate request */
                 const parsed = createPackageSchema.safeParse(req.body);
                 if (!parsed.success) {
+                    app.log.warn(
+                        { agentId, issues: parsed.error.issues },
+                        "Package creation validation failed"
+                    );
                     return reply.status(400).send(parsed.error.format());
                 }
 
@@ -91,20 +99,43 @@ export default async function createPackageRoute(app: FastifyInstance) {
                     travellerEmails,
                 } = parsed.data;
 
+                app.log.debug(
+                    {
+                        agentId,
+                        packageName,
+                        tripType,
+                        members,
+                        hasDestinations: destinations.length > 0,
+                        copyFrom: copyDestinationsFromPackageId ?? null,
+                    },
+                    "Parsed package creation data"
+                );
+
                 let finalDestinations = destinations;
 
-                /** Copy destinations from another package only if no destinations are provided */
+                /** Copy destinations if needed */
                 if (finalDestinations.length === 0 && copyDestinationsFromPackageId) {
+                    app.log.info(
+                        { agentId, sourcePackageId: copyDestinationsFromPackageId },
+                        "Copying destinations from another package"
+                    );
+
                     const sourcePackage = await prisma.package.findUnique({
                         where: {
                             packageId: copyDestinationsFromPackageId,
-                            agentId: req.user.id,
+                            agentId,
                         },
                         include: { destinations: true },
                     });
 
                     if (!sourcePackage) {
-                        return reply.status(404).send({ error: "package not found or not owned by agent" });
+                        app.log.warn(
+                            { agentId, copyDestinationsFromPackageId },
+                            "Source package not found or not owned by agent"
+                        );
+                        return reply.status(404).send({
+                            error: "package not found or not owned by agent",
+                        });
                     }
 
                     finalDestinations = sourcePackage.destinations.map((d) => ({
@@ -114,29 +145,52 @@ export default async function createPackageRoute(app: FastifyInstance) {
                         endDate: d.endDate.toISOString(),
                         cityId: d.cityId,
                     }));
+
+                    app.log.debug(
+                        { agentId, copiedCount: finalDestinations.length },
+                        "Copied destinations from existing package"
+                    );
                 }
 
-                /** Validate travellerEmails */
+                /** Validate traveller emails */
                 let validTravellerIds: number[] = [];
                 if (travellerEmails.length > 0) {
+                    app.log.debug(
+                        { agentId, travellerEmails },
+                        "Validating traveller emails"
+                    );
+
                     const validTravellers = await prisma.traveller.findMany({
-                        where: {
-                            email: { in: travellerEmails }
-                        },
+                        where: { email: { in: travellerEmails } },
                         select: { travellerId: true, email: true },
                     });
 
                     const validEmails = validTravellers.map((t) => t.email);
                     if (validEmails.length !== travellerEmails.length) {
-                        return reply.status(400).send({ error: "One or more traveller emails are invalid!" });
+                        const invalids = travellerEmails.filter(
+                            (e) => !validEmails.includes(e)
+                        );
+                        app.log.warn(
+                            { agentId, invalidEmails: invalids },
+                            "Invalid traveller emails detected"
+                        );
+                        return reply
+                            .status(400)
+                            .send({ error: "One or more traveller emails are invalid!" });
                     }
 
                     validTravellerIds = validTravellers.map((t) => t.travellerId);
+                    app.log.debug(
+                        { agentId, validTravellerCount: validTravellerIds.length },
+                        "Validated traveller emails successfully"
+                    );
                 }
 
-                /** Validate cityIds in destinations */
+                /** Validate city IDs */
                 const cityIds = finalDestinations.map((d) => d.cityId);
                 if (cityIds.length > 0) {
+                    app.log.debug({ agentId, cityIds }, "Validating city IDs");
+
                     const validCities = await prisma.city.findMany({
                         where: { cityId: { in: cityIds } },
                         select: { cityId: true },
@@ -144,11 +198,25 @@ export default async function createPackageRoute(app: FastifyInstance) {
 
                     const validCityIds = validCities.map((c) => c.cityId);
                     if (validCityIds.length !== cityIds.length) {
-                        return reply.status(400).send({ error: "One or more city IDs are invalid!" });
+                        const invalidCityIds = cityIds.filter(
+                            (id) => !validCityIds.includes(id)
+                        );
+                        app.log.warn(
+                            { agentId, invalidCityIds },
+                            "Invalid city IDs provided"
+                        );
+                        return reply
+                            .status(400)
+                            .send({ error: "One or more city IDs are invalid!" });
                     }
                 }
 
                 /** Create package */
+                app.log.info(
+                    { agentId, packageName },
+                    "Creating new package in database"
+                );
+
                 const newPackage = await prisma.package.create({
                     data: {
                         packageName,
@@ -160,9 +228,7 @@ export default async function createPackageRoute(app: FastifyInstance) {
                         members,
                         startDate: new Date(startDate),
                         endDate: new Date(endDate),
-                        agent: { connect: { agentId: req.user.id } },
-
-                        /** Create destinations */
+                        agent: { connect: { agentId } },
                         destinations: {
                             create: finalDestinations.map((d) => ({
                                 title: d.title,
@@ -172,8 +238,6 @@ export default async function createPackageRoute(app: FastifyInstance) {
                                 cityId: d.cityId,
                             })),
                         },
-
-                        /** Subscribe travellers */
                         subscriptions: {
                             create: validTravellerIds.map((travellerId) => ({
                                 traveller: { connect: { travellerId } },
@@ -230,14 +294,22 @@ export default async function createPackageRoute(app: FastifyInstance) {
                                 },
                                 subscribedAt: true,
                                 moneyPaid: true,
-                            }
-                        }
+                            },
+                        },
                     },
                 });
 
+                app.log.info(
+                    { agentId, packageId: newPackage.packageId },
+                    "Package created successfully"
+                );
+
                 return reply.status(201).send({ package: newPackage });
             } catch (err: any) {
-                console.error(err);
+                app.log.error(
+                    { err, agentId },
+                    "Unexpected error during package creation"
+                );
                 return reply
                     .status(500)
                     .send({ error: CONSTANTS.ERRORS.INTERNAL_SERVER_ERROR });
