@@ -13,3 +13,5 @@ node_modules
 # Logs folder inside src, keep folder but ignore its contents
 /src/logs/*
 !/src/logs/.gitkeep
+
+/logs
