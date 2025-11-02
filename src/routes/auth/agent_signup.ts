@@ -3,7 +3,6 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import bcrypt from "bcrypt";
 import { prisma } from "../../prisma";
-import { CONSTANTS } from "../../constants/constants";
 import { ROUTES } from "../../constants/routes";
 import { getPermissionKeysByRole } from "../../constants/permissions";
 import { ROLES } from "../../constants/roles";
@@ -75,7 +74,7 @@ export default async function signupRoute(app: FastifyInstance) {
     } catch (err) {
       /** Log error and return internal server error */
       app.log.error({ err }, "Unexpected error during signup");
-      return reply.status(500).send({ error: CONSTANTS.ERRORS.INTERNAL_SERVER_ERROR });
+      return reply.status(500).send({ error: err });
     }
   });
 }
