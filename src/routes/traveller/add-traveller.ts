@@ -56,7 +56,13 @@ export default async function addTravellersRoute(app: FastifyInstance) {
                     where: { packageId },
                 });
 
-                /** Check if adding these travellers exceeds members limit */
+                if (pkg.members === null) {
+                    /** Public package → travellers cannot be manually added */ 
+                    return reply.status(400).send({
+                        error: "Cannot add travellers to this package.",
+                    });
+                }
+
                 if (currentCount + travellers.length > pkg.members) {
                     return reply.status(400).send({
                         error: `Cannot add travellers. Package allows a maximum of ${pkg.members} members.`,

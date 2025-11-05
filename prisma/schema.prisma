@@ -26,13 +26,18 @@ model Package {
   tripType    TripType
   status      PackageStatus @default(ACTIVE)
   price       Float
-  members     Int
   description String?
   isFeatured  Boolean       @default(false)
-  isPrivate   Boolean       @default(false)
+  isPrivate   Boolean       @default(true)
 
-  startDate DateTime
-  endDate   DateTime
+  // Private package fields (nullable for public)
+  members     Int?
+  startDate   DateTime?
+  endDate     DateTime?
+
+  // Public package fields (nullable for private)
+  days        Int?
+  nights      Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

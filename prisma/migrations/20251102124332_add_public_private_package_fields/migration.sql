@@ -1,0 +1,7 @@
+-- AlterTable
+ALTER TABLE "Package" ADD COLUMN     "days" INTEGER,
+ADD COLUMN     "nights" INTEGER,
+ALTER COLUMN "endDate" DROP NOT NULL,
+ALTER COLUMN "isPrivate" SET DEFAULT true,
+ALTER COLUMN "startDate" DROP NOT NULL,
+ALTER COLUMN "members" DROP NOT NULL;
