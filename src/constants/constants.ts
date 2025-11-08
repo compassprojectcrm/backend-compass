@@ -11,5 +11,6 @@ export const CONSTANTS = {
         NOT_FOUND: "Not found",
         UNAUTHORIZED: "Unauthorized",
         FORBIDDEN: "Forbidden",
+        ALREADY_EXISTS: "Resource already exists",
     }
 };

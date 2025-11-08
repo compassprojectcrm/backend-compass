@@ -1,72 +1,72 @@
-/** src/routes/customers/verify-customer-email.ts */
+/** src/routes/customers/verify-customer-username.ts */
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { prisma } from "../../prisma";
-import { addEmailsToFilter, mayExist } from "../../utils/email-bloom-filter";
+import { addUsernamesToFilter, mayExist } from "../../utils/username-bloom-filter";
 import { ROUTES } from "../../constants/routes";
 import { PERMISSIONS } from "../../constants/permissions";
 import { permissionGuard } from "../../middleware/auth";
 import { CONSTANTS } from "../../constants/constants";
 
-/** Zod schema for verifying multiple customer emails */
-const verifyEmailsSchema = z.object({
-    emails: z.array(z.string().email()).nonempty(),
+/** Zod schema for verifying multiple customer usernames */
+const verifyUsernamesSchema = z.object({
+    usernames: z.array(z.string().email()).nonempty(),
 });
 
-export default async function verifyCustomerEmailRoute(app: FastifyInstance) {
-    /** On startup, preload the Bloom filter with all customer emails */
-    const customers = await prisma.traveller.findMany({ select: { email: true } });
-    addEmailsToFilter(customers.map((c) => c.email));
+export default async function verifyCustomerUsernameRoute(app: FastifyInstance) {
+    /** On startup, preload the Bloom filter with all customer usernames */
+    const customers = await prisma.traveller.findMany({ select: { username: true } });
+    addUsernamesToFilter(customers.map((c) => c.username));
 
     app.post(
-        ROUTES.COMMON.SEARCH_CUSTOMER_EMAIL,
+        ROUTES.COMMON.SEARCH_CUSTOMER_USERNAME,
         {
             preValidation: [
                 app.authenticate,
-                permissionGuard([PERMISSIONS.COMMON.SEARCH_CUSTOMER_EMAIL]),
+                permissionGuard([PERMISSIONS.COMMON.SEARCH_CUSTOMER_USERNAME]),
             ],
         },
         async (req: FastifyRequest, reply: FastifyReply) => {
             try {
                 /** Validate request body */
-                const parsed = verifyEmailsSchema.safeParse(req.body);
+                const parsed = verifyUsernamesSchema.safeParse(req.body);
                 if (!parsed.success) {
                     return reply.status(400).send(parsed.error.format());
                 }
 
-                const { emails } = parsed.data;
+                const { usernames } = parsed.data;
                 const result: Record<string, { exists: boolean; travellerId?: number }> = {};
 
-                /** Collect "maybe exists" emails for batch DB query */
+                /** Collect "maybe exists" usernames for batch DB query */
                 const candidates: string[] = [];
 
-                for (const email of emails) {
-                    if (!mayExist(email)) {
+                for (const username of usernames) {
+                    if (!mayExist(username)) {
                         /** Definitely does not exist */
-                        result[email] = { exists: false };
+                        result[username] = { exists: false };
                     } else {
                         /** Might exist → check later in bulk */
-                        candidates.push(email);
+                        candidates.push(username);
                     }
                 }
 
-                /** Perform a single DB query for all candidate emails */
+                /** Perform a single DB query for all candidate usernames */
                 if (candidates.length > 0) {
                     const existingTravellers = await prisma.traveller.findMany({
-                        where: { email: { in: candidates } },
-                        select: { email: true, travellerId: true },
+                        where: { username: { in: candidates } },
+                        select: { username: true, travellerId: true },
                     });
 
-                    /** Map emails to travellerId for fast lookup */
-                    const emailToTravellerId = new Map(
-                        existingTravellers.map((t) => [t.email, t.travellerId])
+                    /** Map usernames to travellerId for fast lookup */
+                    const usernameToTravellerId = new Map(
+                        existingTravellers.map((t) => [t.username, t.travellerId])
                     );
 
-                    for (const email of candidates) {
-                        if (emailToTravellerId.has(email)) {
-                            result[email] = { exists: true };
+                    for (const username of candidates) {
+                        if (usernameToTravellerId.has(username)) {
+                            result[username] = { exists: true };
                         } else {
-                            result[email] = { exists: false };
+                            result[username] = { exists: false };
                         }
                     }
                 }
@@ -74,9 +74,9 @@ export default async function verifyCustomerEmailRoute(app: FastifyInstance) {
                 /** Send final results */
                 return reply.status(200).send(result);
             } catch (error) {
-                return reply
-                    .status(500)
-                    .send({ error: CONSTANTS.ERRORS.INTERNAL_SERVER_ERROR });
+                return reply.status(500).send({
+                    error: CONSTANTS.ERRORS.INTERNAL_SERVER_ERROR
+                });
             }
         }
     );

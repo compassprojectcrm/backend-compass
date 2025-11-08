@@ -21,11 +21,18 @@ export const ROUTES = {
     },
     COMMON: {
         COUNTRIES: "/countries",
-        SEARCH_CUSTOMER_EMAIL: "/search-customer-email",
+        SEARCH_CUSTOMER_USERNAME: "/search-customer-email",
+        GET_ALL_PERMISSIONS: "/permissions",
     },
     TRAVELLER: {
         UPDATE_TRAVELLER: "/packages/traveller/update",
         REMOVE_TRAVELLER: "/packages/traveller/delete",
         ADD_TRAVELLER: "/packages/traveller/add",
+    },
+    AGENT_MEMBER: {
+        CREATE_AGENT_MEMBER: "/agent-member/create",
+        UPDATE_AGENT_MEMBER: "/agent-member/update",
+        DELETE_AGENT_MEMBERS: "/agent-member/delete",
+        GET_ALL_AGENT_MEMBERS: "/agent-member",
     }
 };

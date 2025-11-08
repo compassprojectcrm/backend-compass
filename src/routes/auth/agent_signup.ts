@@ -13,7 +13,7 @@ const signupSchema = z.object({
   firstName: z.string().min(1),
   lastName: z.string().min(1),
   companyName: z.string().min(1),
-  email: z.string().email(),
+  username: z.string().email(),
   password: z.string().min(6),
 });
 
@@ -30,17 +30,17 @@ export default async function signupRoute(app: FastifyInstance) {
         return reply.status(400).send(parsed.error.format());
       }
 
-      const { firstName, lastName, companyName, email, password } = parsed.data;
-      app.log.debug({ email }, "Parsed signup data (password omitted)");
+      const { firstName, lastName, companyName, username, password } = parsed.data;
+      app.log.debug({ username }, "Parsed signup data (password omitted)");
 
       /** Check if user already exists */
-      const existingAgent = await prisma.agent.findUnique({ where: { email } });
+      const existingAgent = await prisma.agent.findUnique({ where: { username } });
       if (existingAgent) {
-        app.log.debug({ email }, "User already exists");
+        app.log.debug({ username }, "User already exists");
         return reply.status(400).send({ error: "User already exists!" });
       }
 
-      app.log.debug({ email }, "Hashing password");
+      app.log.debug({ username }, "Hashing password");
 
       /** Hash the password */
       const passwordHash = await bcrypt.hash(password, 10);
@@ -51,12 +51,12 @@ export default async function signupRoute(app: FastifyInstance) {
           firstName,
           lastName,
           companyName,
-          email,
+          username,
           password: passwordHash,
         },
       });
 
-      app.log.info({ agentId: agent.agentId, email: agent.email }, "Agent created successfully");
+      app.log.info({ agentId: agent.agentId, username: agent.username }, "Agent created successfully");
 
       /** Generate JWT token */
       const token = app.jwt.sign({

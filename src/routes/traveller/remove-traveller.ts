@@ -10,7 +10,7 @@ import { PERMISSIONS } from "../../constants/permissions";
 /** Zod schema */
 const removeTravellersSchema = z.object({
     packageId: z.number().int().positive(),
-    emails: z.array(z.string().email()).nonempty().max(100),
+    usernames: z.array(z.string().email()).nonempty().max(100),
 });
 
 /** DELETE /packages/remove-travellers */
@@ -30,11 +30,18 @@ export default async function removeTravellersRoute(app: FastifyInstance) {
                     return reply.status(400).send(parsed.error.format());
                 }
 
-                const { packageId, emails } = parsed.data;
+                const { packageId, usernames } = parsed.data;
 
                 /** Ensure package exists and belongs to agent */
                 const pkg = await prisma.package.findFirst({
-                    where: { packageId, agentId: req.user.id },
+                    where: {
+                        packageId,
+                        agentId: req.user.id
+                    },
+                    select: {
+                        packageId: true,
+                        members: true
+                    },
                 });
 
                 if (!pkg) {
@@ -43,11 +50,18 @@ export default async function removeTravellersRoute(app: FastifyInstance) {
                     });
                 }
 
+                if (pkg.members === null) {
+                    /** Public package → travellers cannot be removed added */
+                    return reply.status(400).send({
+                        error: "This operation is not allowed in a public package.",
+                    });
+                }
+
                 /** Delete by traveller email (fail silently if none exist) */
                 await prisma.packageSubscription.deleteMany({
                     where: {
                         packageId,
-                        traveller: { email: { in: emails } },
+                        traveller: { username: { in: usernames } },
                     },
                 });
 
@@ -55,9 +69,9 @@ export default async function removeTravellersRoute(app: FastifyInstance) {
                     message: "Travellers removed successfully!",
                 });
             } catch (err) {
-                return reply
-                    .status(500)
-                    .send({ error: CONSTANTS.ERRORS.INTERNAL_SERVER_ERROR });
+                return reply.status(500).send({
+                    error: CONSTANTS.ERRORS.INTERNAL_SERVER_ERROR
+                });
             }
         }
     );

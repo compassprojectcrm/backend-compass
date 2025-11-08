@@ -10,7 +10,7 @@ import { ROLES } from "../../constants/roles";
 
 /** Zod schema for login */
 const loginSchema = z.object({
-    email: z.string().email(),
+    username: z.string().email(),
     password: z.string().min(6),
 });
 
@@ -26,16 +26,16 @@ export default async function customerLoginRoute(app: FastifyInstance) {
                 return reply.status(400).send(parsed.error.format());
             }
 
-            const { email, password } = parsed.data;
-            app.log.debug({ email }, "Parsed traveller login data (password omitted)");
+            const { username, password } = parsed.data;
+            app.log.debug({ username }, "Parsed traveller login data (password omitted)");
 
             /** Find user in DB */
             const traveller = await prisma.traveller.findUnique({
-                where: { email },
+                where: { username },
             });
 
             if (!traveller) {
-                app.log.debug({ email }, "Traveller not found");
+                app.log.debug({ username }, "Traveller not found");
                 return reply.status(401).send({ error: CONSTANTS.ERRORS.INVALID_CREDENTIALS });
             }
 
@@ -57,7 +57,7 @@ export default async function customerLoginRoute(app: FastifyInstance) {
                 permissions: getPermissionKeysByRole(ROLES.TRAVELLER),
             });
 
-            app.log.info({ travellerId: traveller.travellerId, email: traveller.email }, "Traveller login successful");
+            app.log.info({ travellerId: traveller.travellerId, username: traveller.username }, "Traveller login successful");
 
             return reply.send({
                 message: "Login successful",

@@ -13,7 +13,7 @@ const addTravellersSchema = z.object({
     travellers: z
         .array(
             z.object({
-                email: z.string().email(),
+                username: z.string().email(),
                 moneyPaid: z.number().min(0).optional().default(0),
             })
         )
@@ -41,14 +41,27 @@ export default async function addTravellersRoute(app: FastifyInstance) {
 
                 /** Ensure package exists and belongs to the agent */
                 const pkg = await prisma.package.findFirst({
-                    where: { packageId, agentId: req.user.id },
-                    select: { packageId: true, members: true },
+                    where: {
+                        packageId,
+                        agentId: req.user.id
+                    },
+                    select: {
+                        packageId: true,
+                        members: true
+                    },
                 });
 
                 if (!pkg) {
-                    return reply
-                        .status(404)
-                        .send({ error: "Package not found or you do not have permission to modify it." });
+                    return reply.status(404).send({
+                        error: "Package not found or you are not authorized to modify it.",
+                    });
+                }
+
+                if (pkg.members === null) {
+                    /** Public package → travellers cannot be manually added */
+                    return reply.status(400).send({
+                        error: "This operation is not allowed in a public package.",
+                    });
                 }
 
                 /** Count current subscribers */
@@ -56,37 +69,30 @@ export default async function addTravellersRoute(app: FastifyInstance) {
                     where: { packageId },
                 });
 
-                if (pkg.members === null) {
-                    /** Public package → travellers cannot be manually added */ 
-                    return reply.status(400).send({
-                        error: "Cannot add travellers to this package.",
-                    });
-                }
-
                 if (currentCount + travellers.length > pkg.members) {
                     return reply.status(400).send({
                         error: `Cannot add travellers. Package allows a maximum of ${pkg.members} members.`,
                     });
                 }
 
-                /** Validate emails → resolve travellerIds */
-                const emails = travellers.map(t => t.email);
+                /** Validate usernames → resolve travellerIds */
+                const usernames = travellers.map(t => t.username);
                 const validTravellers = await prisma.traveller.findMany({
-                    where: { email: { in: emails } },
-                    select: { travellerId: true, email: true },
+                    where: { username: { in: usernames } },
+                    select: { travellerId: true, username: true },
                 });
 
-                const foundEmails = validTravellers.map(t => t.email);
-                const missingEmails = emails.filter(e => !foundEmails.includes(e));
+                const foundUsernames = validTravellers.map(t => t.username);
+                const missingUsernames = usernames.filter(e => !foundUsernames.includes(e));
 
-                if (missingEmails.length > 0) {
+                if (missingUsernames.length > 0) {
                     return reply.status(400).send({
-                        error: `The following travellers do not exist: ${missingEmails.join(", ")}`
+                        error: `Some traveller usernames are invalid.`
                     });
                 }
 
-                /** Map emails to travellerIds */
-                const emailToId = new Map(validTravellers.map(t => [t.email, t.travellerId]));
+                /** Map usernames to travellerIds */
+                const usernameToId = new Map(validTravellers.map(t => [t.username, t.travellerId]));
 
                 try {
                     const createdSubscriptions = await prisma.$transaction(
@@ -94,7 +100,7 @@ export default async function addTravellersRoute(app: FastifyInstance) {
                             prisma.packageSubscription.create({
                                 data: {
                                     packageId,
-                                    travellerId: emailToId.get(t.email)!,
+                                    travellerId: usernameToId.get(t.username)!,
                                     moneyPaid: t.moneyPaid ?? 0,
                                 },
                                 select: {
@@ -103,7 +109,7 @@ export default async function addTravellersRoute(app: FastifyInstance) {
                                             travellerId: true,
                                             firstName: true,
                                             lastName: true,
-                                            email: true,
+                                            username: true,
                                         },
                                     },
                                     moneyPaid: true,
@@ -121,14 +127,14 @@ export default async function addTravellersRoute(app: FastifyInstance) {
                         return reply.status(400).send({ error: "One or more travellers do not exist" });
                     }
 
-                    return reply
-                        .status(500)
-                        .send({ error: CONSTANTS.ERRORS.INTERNAL_SERVER_ERROR });
+                    return reply.status(500).send({
+                        error: CONSTANTS.ERRORS.INTERNAL_SERVER_ERROR
+                    });
                 }
             } catch (err) {
-                return reply
-                    .status(500)
-                    .send({ error: CONSTANTS.ERRORS.INTERNAL_SERVER_ERROR });
+                return reply.status(500).send({
+                    error: CONSTANTS.ERRORS.INTERNAL_SERVER_ERROR
+                });
             }
         }
     );

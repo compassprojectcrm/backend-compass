@@ -68,6 +68,8 @@ export default async function getPackagesRoute(app: FastifyInstance) {
                         isPrivate: true,
                         startDate: true,
                         endDate: true,
+                        days: true,
+                        nights: true,
                         destinations: {
                             select: {
                                 destinationId: true,
@@ -106,7 +108,7 @@ export default async function getPackagesRoute(app: FastifyInstance) {
                                                 travellerId: true,
                                                 firstName: true,
                                                 lastName: true,
-                                                email: true,
+                                                username: true,
                                             },
                                         },
                                         subscribedAt: true,
@@ -123,9 +125,9 @@ export default async function getPackagesRoute(app: FastifyInstance) {
 
                 return reply.send({ packages });
             } catch (err: any) {
-                return reply
-                    .status(500)
-                    .send({ error: CONSTANTS.ERRORS.INTERNAL_SERVER_ERROR });
+                return reply.status(500).send({
+                    error: CONSTANTS.ERRORS.INTERNAL_SERVER_ERROR
+                });
             }
         }
     );

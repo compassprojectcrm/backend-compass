@@ -4,7 +4,7 @@ import { z } from "zod";
 import bcrypt from "bcrypt";
 import { prisma } from "../../prisma";
 import { CONSTANTS } from "../../constants/constants";
-import { addEmailsToFilter } from "../../utils/email-bloom-filter";
+import { addUsernamesToFilter } from "../../utils/username-bloom-filter";
 import { ROUTES } from "../../constants/routes";
 import { ROLES } from "../../constants/roles";
 import { getPermissionKeysByRole } from "../../constants/permissions";
@@ -13,7 +13,7 @@ import { getPermissionKeysByRole } from "../../constants/permissions";
 export const signupSchema = z.object({
     firstName: z.string().min(1),
     lastName: z.string().min(1),
-    email: z.string().email(),
+    username: z.string().email(),
     password: z.string().min(6),
 });
 
@@ -30,17 +30,17 @@ export default async function customerSignupRoute(app: FastifyInstance) {
                 return reply.status(400).send(parsed.error.format());
             }
 
-            const { firstName, lastName, email, password } = parsed.data;
-            app.log.debug({ email }, "Parsed traveller signup data (password omitted)");
+            const { firstName, lastName, username, password } = parsed.data;
+            app.log.debug({ username }, "Parsed traveller signup data (password omitted)");
 
             /** Check if user already exists */
-            const existingTraveller = await prisma.traveller.findUnique({ where: { email } });
+            const existingTraveller = await prisma.traveller.findUnique({ where: { username } });
             if (existingTraveller) {
-                app.log.debug({ email }, "Traveller already exists");
+                app.log.debug({ username }, "Traveller already exists");
                 return reply.status(400).send({ error: "User already exists!" });
             }
 
-            app.log.debug({ email }, "Hashing password and creating traveller");
+            app.log.debug({ username }, "Hashing password and creating traveller");
 
             /** Hash the password */
             const passwordHash = await bcrypt.hash(password, 10);
@@ -50,14 +50,14 @@ export default async function customerSignupRoute(app: FastifyInstance) {
                 data: {
                     firstName,
                     lastName,
-                    email,
+                    username,
                     password: passwordHash,
                 },
             });
 
-            /** Insert the new email in the bloom filter */
-            addEmailsToFilter([email]);
-            app.log.debug({ email }, "Email added to bloom filter");
+            /** Insert the new username in the bloom filter */
+            addUsernamesToFilter([username]);
+            app.log.debug({ username }, "Username added to bloom filter");
 
             /** Generate JWT token */
             const token = app.jwt.sign({
@@ -66,7 +66,7 @@ export default async function customerSignupRoute(app: FastifyInstance) {
                 permissions: getPermissionKeysByRole(ROLES.TRAVELLER),
             });
 
-            app.log.info({ travellerId: traveller.travellerId, email: traveller.email }, "Traveller signup successful");
+            app.log.info({ travellerId: traveller.travellerId, username: traveller.username }, "Traveller signup successful");
 
             /** Return success response */
             return reply.send({

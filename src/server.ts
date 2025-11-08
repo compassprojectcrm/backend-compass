@@ -22,6 +22,11 @@ import verifyCustomerEmailRoute from "./routes/common/search-customer-email";
 import addTravellersRoute from "./routes/traveller/add-traveller";
 import updateTravellersRoute from "./routes/traveller/update-traveller";
 import removeTravellersRoute from "./routes/traveller/remove-traveller";
+import createAgentMemberRoute from "./routes/agent_member/create_agent_member";
+import updateAgentMemberRoute from "./routes/agent_member/update_agent_member";
+import deleteAgentMembersRoute from "./routes/agent_member/delete_agent_member";
+import getAllAgentMembersRoute from "./routes/agent_member/get_all_agent_members";
+import getAllPermissionsRoute from "./routes/common/get-all-permissions";
 
 /** Load environment variables from .env file */
 dotenv.config();
@@ -106,6 +111,7 @@ app.register(customerLoginRoute);
 /** common route */
 app.register(countriesRoute);
 app.register(verifyCustomerEmailRoute);
+app.register(getAllPermissionsRoute);
 
 /** packages */
 app.register(createPackageRoute);
@@ -122,6 +128,12 @@ app.register(deleteDestinationRoute);
 app.register(addTravellersRoute);
 app.register(updateTravellersRoute);
 app.register(removeTravellersRoute);
+
+/** agent member */
+app.register(createAgentMemberRoute);
+app.register(updateAgentMemberRoute);
+app.register(deleteAgentMembersRoute);
+app.register(getAllAgentMembersRoute);
 
 /** Start server */
 app.listen({ port: 3000, host: "0.0.0.0" }, (err, address) => {

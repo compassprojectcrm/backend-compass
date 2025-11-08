@@ -8,16 +8,35 @@ datasource db {
 }
 
 model Agent {
-  agentId      Int       @id @default(autoincrement())
-  firstName    String
-  lastName     String
-  companyName  String
-  email        String    @unique
-  password     String
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  agentId     Int      @id @default(autoincrement())
+  firstName   String
+  lastName    String
+  companyName String
+  username    String   @unique
+  password    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  packages     Package[]
+  // Relationships
+  packages Package[]
+  users    AgentMember[] // 👈 renamed relation
+}
+
+model AgentMember {
+  agentMemberId Int      @id @default(autoincrement())
+  firstName     String
+  lastName      String
+  username      String @unique
+  password      String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // 👇 Every AgentMember must belong to one Agent
+  agentId Int
+  agent   Agent @relation(fields: [agentId], references: [agentId], onDelete: Cascade)
+
+  // 👇 Store user-specific permissions
+  permissions String[] @default([])
 }
 
 model Package {
@@ -31,13 +50,13 @@ model Package {
   isPrivate   Boolean       @default(true)
 
   // Private package fields (nullable for public)
-  members     Int?
-  startDate   DateTime?
-  endDate     DateTime?
+  members   Int?
+  startDate DateTime?
+  endDate   DateTime?
 
   // Public package fields (nullable for private)
-  days        Int?
-  nights      Int?
+  days   Int?
+  nights Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -113,7 +132,7 @@ model Traveller {
   travellerId Int      @id @default(autoincrement())
   firstName   String
   lastName    String
-  email       String   @unique
+  username    String   @unique
   password    String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

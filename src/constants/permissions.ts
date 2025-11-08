@@ -23,7 +23,15 @@ export const PERMISSIONS = {
 
     COMMON: {
         READ_COUNTRIES: { key: "countries:read", roles: [ROLES.AGENT, ROLES.TRAVELLER] },
-        SEARCH_CUSTOMER_EMAIL: { key: "search_email:read", roles: [ROLES.AGENT] },
+        SEARCH_CUSTOMER_USERNAME: { key: "search_username:read", roles: [ROLES.AGENT] },
+        GET_ALL_PERMISSIONS: { key: "permissions:read", roles: [ROLES.AGENT] },
+    },
+
+    AGENT_MEMBER: {
+        CREATE: { key: "agent_member:create", roles: [ROLES.AGENT] },
+        UPDATE: { key: "agent_member:update", roles: [ROLES.AGENT] },
+        DELETE: { key: "agent_member:delete", roles: [ROLES.AGENT] },
+        READ: { key: "agent_member:read", roles: [ROLES.AGENT] },
     }
 };
 

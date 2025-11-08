@@ -60,9 +60,9 @@ export default async function updatePackageRoute(app: FastifyInstance) {
             });
 
             if (!existingPackage) {
-                return reply
-                    .status(404)
-                    .send({ error: "package not found or not owned by agent" });
+                return reply.status(404).send({
+                    error: "package not found or not owned by agent"
+                });
             }
 
             /** Update the package */
@@ -91,7 +91,9 @@ export default async function updatePackageRoute(app: FastifyInstance) {
 
             return reply.status(200).send({ package: updatedPackage });
         } catch (err: any) {
-            return reply.status(500).send({ error: CONSTANTS.ERRORS.INTERNAL_SERVER_ERROR });
+            return reply.status(500).send({
+                error: CONSTANTS.ERRORS.INTERNAL_SERVER_ERROR
+            });
         }
     });
 }

@@ -28,7 +28,9 @@ const basePackageSchema = {
     .max(20)
     .optional()
     .default([]),
-  travellerEmails: z
+
+  /** 👥 Traveller emails — default behavior (used only for private) */
+  travellerUsernames: z
     .array(z.string().email())
     .max(100)
     .optional()
@@ -60,6 +62,15 @@ const publicPackageSchema = z.object({
   members: z.any().transform(() => null).default(null),
   startDate: z.any().transform(() => null).default(null),
   endDate: z.any().transform(() => null).default(null),
+
+  /** 🧹 Force travellerEmails to always become [] (ignore user input) */
+  travellerUsernames: z
+    .any()
+    .transform(() => [] as string[])
+    .default([]),
+}).refine((data) => data.days >= data.nights, {
+  message: "Days must be greater than or equal to nights",
+  path: ["days"],
 });
 
 /** 🔀 Discriminated union schema */
@@ -103,7 +114,7 @@ export default async function createPackageRoute(app: FastifyInstance) {
           isPrivate,
           destinations,
           copyDestinationsFromPackageId,
-          travellerEmails,
+          travellerUsernames,
           startDate,
           endDate,
           days,
@@ -145,9 +156,9 @@ export default async function createPackageRoute(app: FastifyInstance) {
               { agentId, copyDestinationsFromPackageId },
               "Source package not found or not owned by agent"
             );
-            return reply
-              .status(404)
-              .send({ error: "package not found or not owned by agent" });
+            return reply.status(404).send({
+              error: "package not found or not owned by agent"
+            });
           }
 
           finalDestinations = sourcePackage.destinations.map((d) => ({
@@ -166,17 +177,17 @@ export default async function createPackageRoute(app: FastifyInstance) {
 
         /** 👥 Validate traveller emails */
         let validTravellerIds: number[] = [];
-        if (travellerEmails.length > 0) {
+        if (travellerUsernames.length > 0) {
           const validTravellers = await prisma.traveller.findMany({
-            where: { email: { in: travellerEmails } },
-            select: { travellerId: true, email: true },
+            where: { username: { in: travellerUsernames } },
+            select: { travellerId: true, username: true },
           });
 
-          const validEmails = validTravellers.map((t) => t.email);
-          if (validEmails.length !== travellerEmails.length) {
-            return reply
-              .status(400)
-              .send({ error: `Some traveller emails are invalid.` });
+          const validEmails = validTravellers.map((t) => t.username);
+          if (validEmails.length !== travellerUsernames.length) {
+            return reply.status(400).send({
+              error: `Some traveller emails are invalid.`
+            });
           }
 
           validTravellerIds = validTravellers.map((t) => t.travellerId);
@@ -186,15 +197,21 @@ export default async function createPackageRoute(app: FastifyInstance) {
         const cityIds = finalDestinations.map((d) => d.cityId);
         if (cityIds.length > 0) {
           const validCities = await prisma.city.findMany({
-            where: { cityId: { in: cityIds } },
-            select: { cityId: true },
+            where: {
+              cityId: {
+                in: cityIds
+              }
+            },
+            select: {
+              cityId: true
+            },
           });
 
           const validCityIds = validCities.map((c) => c.cityId);
           if (validCityIds.length !== cityIds.length) {
-            return reply
-              .status(400)
-              .send({ error: `Some city Ids are invalid.` });
+            return reply.status(400).send({
+              error: `Some city Ids are invalid.`
+            });
           }
         }
 
@@ -243,22 +260,17 @@ export default async function createPackageRoute(app: FastifyInstance) {
           },
         });
 
-        /** 🧹 Remove irrelevant fields from response */
-        const filteredPackage = isPrivate
-          ? (({ days, nights, ...rest }) => rest)(newPackage)
-          : (({ startDate, endDate, members, ...rest }) => rest)(newPackage);
-
         app.log.info(
           { agentId, packageId: newPackage.packageId },
           "✅ Package created successfully"
         );
 
-        return reply.status(201).send({ package: filteredPackage });
+        return reply.status(201).send({ package: newPackage });
       } catch (err: any) {
         app.log.error({ err, agentId }, "Unexpected error during package creation");
-        return reply
-          .status(500)
-          .send({ error: CONSTANTS.ERRORS.INTERNAL_SERVER_ERROR });
+        return reply.status(500).send({
+          error: CONSTANTS.ERRORS.INTERNAL_SERVER_ERROR
+        });
       }
     }
   );

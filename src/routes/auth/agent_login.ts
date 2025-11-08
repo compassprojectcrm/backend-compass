@@ -1,4 +1,3 @@
-/** src/routes/login.ts */
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import bcrypt from "bcrypt";
@@ -8,9 +7,12 @@ import { ROUTES } from "../../constants/routes";
 import { ROLES } from "../../constants/roles";
 import { getPermissionKeysByRole } from "../../constants/permissions";
 
-/** Zod schema for login */
+/** ✅ Zod schema: accepts either an email or a ULID */
 const loginSchema = z.object({
-    email: z.string().email(),
+    username: z
+        .string()
+        .email()
+        .or(z.string().regex(/^[0-9A-HJKMNP-TV-Z]{26}$/, "Invalid username format")),
     password: z.string().min(6),
 });
 
@@ -20,47 +22,84 @@ export default async function loginRoute(app: FastifyInstance) {
         app.log.debug("Login request received");
 
         try {
+            /** ✅ Step 1 — Validate Input */
             const parsed = loginSchema.safeParse(req.body);
             if (!parsed.success) {
                 app.log.debug({ issues: parsed.error.issues }, "Login validation failed");
                 return reply.status(400).send(parsed.error.format());
             }
 
-            const { email, password } = parsed.data;
-            app.log.debug({ email }, "Parsed login data (password omitted)");
+            const { username, password } = parsed.data;
+            app.log.debug({ username }, "Parsed login data (password omitted)");
 
-            /** Find user in DB */
-            const agent = await prisma.agent.findUnique({
-                where: { email },
-            });
+            let user: any;
+            let permissions: string[];
 
-            if (!agent) {
-                app.log.debug({ email }, "Agent not found");
-                return reply.status(401).send({ error: CONSTANTS.ERRORS.INVALID_CREDENTIALS });
+            /** ✅ Step 2 — Detect login type based on format */
+            const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(username);
+
+            if (isEmail) {
+                /** 🧩 Agent login flow */
+                const agent = await prisma.agent.findUnique({
+                    where: {
+                        username
+                    },
+                });
+
+                if (!agent) {
+                    app.log.debug({ username }, "Agent not found");
+                    return reply.status(401).send({ error: CONSTANTS.ERRORS.INVALID_CREDENTIALS });
+                }
+
+                const match = await bcrypt.compare(password, agent.password);
+                if (!match) {
+                    app.log.debug({ agentId: agent.agentId }, "Agent password mismatch");
+                    return reply.status(401).send({ error: CONSTANTS.ERRORS.INVALID_CREDENTIALS });
+                }
+
+                user = agent;
+                permissions = getPermissionKeysByRole(ROLES.AGENT);
+
+                app.log.debug({ agentId: agent.agentId }, "Login successful.");
+            } else {
+                /** 🧩 Agent Member login flow (ULID) */
+                const member = await prisma.agentMember.findUnique({
+                    where: { username },
+                });
+
+                if (!member) {
+                    app.log.debug({ username }, "Agent member not found");
+                    return reply.status(401).send({ error: CONSTANTS.ERRORS.INVALID_CREDENTIALS });
+                }
+
+                const match = await bcrypt.compare(password, member.password);
+                if (!match) {
+                    app.log.debug({ agentMemberId: member.agentMemberId }, "Member password mismatch");
+                    return reply.status(401).send({ error: CONSTANTS.ERRORS.INVALID_CREDENTIALS });
+                }
+
+                user = member;
+                permissions = member.permissions;
+
+                app.log.debug({ agentMemberId: member.agentMemberId }, "Login successful.");
             }
 
-            app.log.debug({ agentId: agent.agentId }, "Agent found, verifying password");
-
-            /** Compare password with stored hash */
-            const match = await bcrypt.compare(password, agent.password);
-            if (!match) {
-                app.log.debug({ agentId: agent.agentId }, "Password mismatch");
-                return reply.status(401).send({ error: CONSTANTS.ERRORS.INVALID_CREDENTIALS });
-            }
-
-            app.log.debug({ agentId: agent.agentId }, "Password matched, generating token");
-
-            /** Generate JWT token */
+            /** ✅ Step 3 — Generate JWT token */
             const token = app.jwt.sign({
                 role: ROLES.AGENT,
-                id: agent.agentId,
-                permissions: getPermissionKeysByRole(ROLES.AGENT),
+                id: user.agentId,
+                permissions,
             });
 
-            app.log.info({ agentId: agent.agentId }, "Login successful");
+            app.log.info(
+                { role: ROLES.AGENT, id: user.agentId || user.agentMemberId },
+                "Login successful"
+            );
+
+            /** ✅ Step 4 — Respond */
             return reply.send({
-                message: "Login successful",
-                token
+                message: "Login successful.",
+                token,
             });
         } catch (err) {
             app.log.error({ err }, "Unexpected error during login");

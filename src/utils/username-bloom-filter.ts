@@ -10,7 +10,7 @@ import { ScalableBloomFilter } from "bloom-filters";
  */
 const bloom = new ScalableBloomFilter(10_000, 0.01);
 
-export function addEmailsToFilter(emails: string[]) {
+export function addUsernamesToFilter(emails: string[]) {
     for (const email of emails) {
         bloom.add(email);
     }
