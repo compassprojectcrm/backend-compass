@@ -5,7 +5,6 @@ import { prisma } from "../../prisma";
 import { CONSTANTS } from "../../constants/constants";
 import { ROUTES } from "../../constants/routes";
 import { ROLES } from "../../constants/roles";
-import { getPermissionKeysByRole } from "../../constants/permissions";
 
 /** ✅ Zod schema: accepts either an email or a ULID */
 const loginSchema = z.object({
@@ -33,7 +32,7 @@ export default async function loginRoute(app: FastifyInstance) {
             app.log.debug({ username }, "Parsed login data (password omitted)");
 
             let user: any;
-            let permissions: string[];
+            let role: string;
 
             /** ✅ Step 2 — Detect login type based on format */
             const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(username);
@@ -58,7 +57,7 @@ export default async function loginRoute(app: FastifyInstance) {
                 }
 
                 user = agent;
-                permissions = getPermissionKeysByRole(ROLES.AGENT);
+                role = ROLES.AGENT;
 
                 app.log.debug({ agentId: agent.agentId }, "Login successful.");
             } else {
@@ -79,20 +78,19 @@ export default async function loginRoute(app: FastifyInstance) {
                 }
 
                 user = member;
-                permissions = member.permissions;
+                role = ROLES.AGENT_MEMBER;
 
                 app.log.debug({ agentMemberId: member.agentMemberId }, "Login successful.");
             }
 
             /** ✅ Step 3 — Generate JWT token */
             const token = app.jwt.sign({
-                role: ROLES.AGENT,
-                id: user.agentId,
-                permissions,
+                role,
+                id: role === ROLES.AGENT ? user.agentId : user.agentMemberId
             });
 
             app.log.info(
-                { role: ROLES.AGENT, id: user.agentId || user.agentMemberId },
+                { role, id: user.agentId || user.agentMemberId },
                 "Login successful"
             );
 

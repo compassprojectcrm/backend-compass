@@ -5,7 +5,6 @@ import bcrypt from "bcrypt";
 import { prisma } from "../../prisma";
 import { CONSTANTS } from "../../constants/constants";
 import { ROUTES } from "../../constants/routes";
-import { getPermissionKeysByRole } from "../../constants/permissions";
 import { ROLES } from "../../constants/roles";
 
 /** Validation schema for signup input */
@@ -61,8 +60,7 @@ export default async function signupRoute(app: FastifyInstance) {
       /** Generate JWT token */
       const token = app.jwt.sign({
         role: ROLES.AGENT,
-        id: agent.agentId,
-        permissions: getPermissionKeysByRole(ROLES.AGENT),
+        id: agent.agentId
       });
 
       app.log.debug({ agentId: agent.agentId }, "Signup successful, token generated");

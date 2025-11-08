@@ -1,4 +1,5 @@
 export const ROLES = {
     AGENT: "AGENT",
     TRAVELLER: "TRAVELLER",
+    AGENT_MEMBER: "AGENT_MEMBER",
 };

@@ -12,12 +12,10 @@ declare module "@fastify/jwt" {
     payload: {
       role: string;
       id: number;
-      permissions: string[];
     };
     user: {
       role: string;
       id: number;
-      permissions: string[];
     };
   }
 }

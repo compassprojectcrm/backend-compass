@@ -89,9 +89,8 @@ export default async function createAgentMemberRoute(app: FastifyInstance) {
 
         /** ✅ Step 6 — Generate JWT (optional) */
         const token = app.jwt.sign({
-          role: ROLES.AGENT,
-          id: agentId,
-          permissions: newMember.permissions,
+          role: ROLES.AGENT_MEMBER,
+          id: newMember.agentMemberId
         });
 
         /** ✅ Step 7 — Respond */

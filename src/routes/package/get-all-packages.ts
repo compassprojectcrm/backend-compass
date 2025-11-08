@@ -25,7 +25,7 @@ export default async function getPackagesRoute(app: FastifyInstance) {
         },
         async (req: FastifyRequest, reply: FastifyReply) => {
             try {
-                const isAgent = req.user.role === ROLES.AGENT;
+                const isAgent = req.user.role === ROLES.AGENT || req.user.role === ROLES.AGENT_MEMBER;
 
                 let agentId: number | undefined;
 

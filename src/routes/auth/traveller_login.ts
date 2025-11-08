@@ -5,7 +5,6 @@ import bcrypt from "bcrypt";
 import { prisma } from "../../prisma";
 import { CONSTANTS } from "../../constants/constants";
 import { ROUTES } from "../../constants/routes";
-import { getPermissionKeysByRole } from "../../constants/permissions";
 import { ROLES } from "../../constants/roles";
 
 /** Zod schema for login */
@@ -53,8 +52,7 @@ export default async function customerLoginRoute(app: FastifyInstance) {
             /** Generate JWT token */
             const token = app.jwt.sign({
                 role: ROLES.TRAVELLER,
-                id: traveller.travellerId,
-                permissions: getPermissionKeysByRole(ROLES.TRAVELLER),
+                id: traveller.travellerId
             });
 
             app.log.info({ travellerId: traveller.travellerId, username: traveller.username }, "Traveller login successful");

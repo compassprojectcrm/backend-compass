@@ -7,7 +7,6 @@ import { CONSTANTS } from "../../constants/constants";
 import { addUsernamesToFilter } from "../../utils/username-bloom-filter";
 import { ROUTES } from "../../constants/routes";
 import { ROLES } from "../../constants/roles";
-import { getPermissionKeysByRole } from "../../constants/permissions";
 
 /** Validation schema for signup input */
 export const signupSchema = z.object({
@@ -62,8 +61,7 @@ export default async function customerSignupRoute(app: FastifyInstance) {
             /** Generate JWT token */
             const token = app.jwt.sign({
                 role: ROLES.TRAVELLER,
-                id: traveller.travellerId,
-                permissions: getPermissionKeysByRole(ROLES.TRAVELLER),
+                id: traveller.travellerId
             });
 
             app.log.info({ travellerId: traveller.travellerId, username: traveller.username }, "Traveller signup successful");
