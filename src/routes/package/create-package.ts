@@ -90,7 +90,7 @@ export default async function createPackageRoute(app: FastifyInstance) {
       ],
     },
     async (req: FastifyRequest, reply: FastifyReply) => {
-      const agentId = (req.user as any)?.id;
+      const agentId = req.user.id;
       app.log.info({ agentId }, "Incoming create package request");
 
       try {

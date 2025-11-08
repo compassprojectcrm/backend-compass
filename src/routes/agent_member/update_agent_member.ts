@@ -39,21 +39,6 @@ export default async function updateAgentMemberRoute(app: FastifyInstance) {
             const agentId = req.user.id;
 
             try {
-                /** ✅ Step 2 — Verify agent */
-                const agent = await prisma.agent.findUnique({
-                    where: {
-                        agentId
-                    },
-                    select: {
-                        agentId: true
-                    },
-                });
-
-                if (!agent) {
-                    app.log.debug({ agentId }, "Agent not found or unauthorized");
-                    return reply.status(403).send({ error: CONSTANTS.ERRORS.UNAUTHORIZED });
-                }
-
                 /** ✅ Step 3 — Verify member belongs to this agent */
                 const existingMember = await prisma.agentMember.findUnique({
                     where: {

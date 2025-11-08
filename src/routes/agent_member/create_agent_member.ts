@@ -42,21 +42,6 @@ export default async function createAgentMemberRoute(app: FastifyInstance) {
       try {
         app.log.debug({ agentId, firstName, lastName }, "Parsed agent member data");
 
-        /** ✅ Step 2 — Ensure the authenticated user is an agent */
-        const agent = await prisma.agent.findUnique({
-          where: {
-            agentId
-          },
-          select: {
-            agentId: true
-          },
-        });
-
-        if (!agent) {
-          app.log.debug({ agentId }, "Agent not found or unauthorized");
-          return reply.status(403).send({ error: CONSTANTS.ERRORS.UNAUTHORIZED });
-        }
-
         /** ✅ Step 3 — Generate ULID as the member’s login ID */
         const username = ulid();
 

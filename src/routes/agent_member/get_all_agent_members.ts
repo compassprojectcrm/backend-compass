@@ -22,7 +22,9 @@ export default async function getAllAgentMembersRoute(app: FastifyInstance) {
             try {
                 /** ✅ Fetch all members belonging to the agent */
                 const members = await prisma.agentMember.findMany({
-                    where: { agentId },
+                    where: {
+                        agentId
+                    },
                     select: {
                         agentMemberId: true,
                         firstName: true,
